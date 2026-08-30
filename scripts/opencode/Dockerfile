@@ -15,6 +15,9 @@ USER root
 RUN npm install -g opencode-ai@${OPENCODE_VERSION} && \
     npm cache clean --force
 
+# Fix home directory ownership (npm creates dirs as root)
+RUN chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
+
 # ---------------------------------------------------------------------------
 # Switch back to node user
 # ---------------------------------------------------------------------------
@@ -27,4 +30,4 @@ COPY --chown=${USERNAME}:${USERNAME} entrypoint.sh /home/${USERNAME}/entrypoint.
 
 RUN chmod +x /home/${USERNAME}/entrypoint.sh
 
-ENTRYPOINT ["/home/${USERNAME}/entrypoint.sh"]
+ENTRYPOINT ["/home/node/entrypoint.sh"]

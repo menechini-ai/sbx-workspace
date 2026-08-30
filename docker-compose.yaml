@@ -16,7 +16,7 @@ services:
     ports:
       - "49374:49374"
     volumes:
-      - ~/.ai-memory:/data
+      - /home/access/.ai-memory:/data
     environment:
       - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN:-seu_token_super_seguro}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -44,7 +44,8 @@ services:
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=${ANTHROPIC_DEFAULT_HAIKU_MODEL:-claude-haiku-4-8}
 
       # Integração com ai-memory (para o ai-memory CLI wrapper)
-      - AI_MEMORY_URL=http://ai-memory:49374
+      - AI_MEMORY_URL=http://host.docker.internal:49374
+      - AI_MEMORY_SERVER_URL=http://host.docker.internal:49374
       - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN:-seu_token_super_seguro}
       
       # Herda o usuário do Git do seu computador (ajuste se preferir fixar valores)
@@ -98,7 +99,8 @@ services:
       - TZ=America/Sao_Paulo
 
       # Integração com ai-memory (para o ai-memory CLI wrapper)
-      - AI_MEMORY_URL=http://ai-memory:49374
+      - AI_MEMORY_URL=http://host.docker.internal:49374
+      - AI_MEMORY_SERVER_URL=http://host.docker.internal:49374
       - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN:-seu_token_super_seguro}
       
       # Herda o usuário do Git do seu computador (ajuste se preferir fixar valores)
@@ -123,6 +125,7 @@ services:
 volumes:
   claude_config:
   opencode_config:
+  ai-memory-data:
 
 networks:
   ai_network:

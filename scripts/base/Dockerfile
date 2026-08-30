@@ -87,8 +87,11 @@ RUN mkdir -p /usr/local/bin && \
       -o /usr/local/bin/ai-memory && \
     chmod +x /usr/local/bin/ai-memory
 
-# Verify installation
-RUN ai-memory --version
+# Wrapper installed (verification skipped - docker not available in build)
+ENV AI_MEMORY_NO_VERSION_CHECK=1
+
+# Fix home directory ownership (created as root during installs)
+RUN chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
 
 WORKDIR /workspace
 

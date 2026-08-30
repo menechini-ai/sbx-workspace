@@ -25,7 +25,7 @@ down:
 	docker compose down
 
 # Abre o Claude Code instantaneamente com um único comando
-run:
+cc:
 	@echo "Iniciando Claude Code com o usuário Git: $(GIT_NAME)"
 	@GIT_AUTHOR_NAME="$(GIT_NAME)" \
 	GIT_AUTHOR_EMAIL="$(GIT_EMAIL)" \

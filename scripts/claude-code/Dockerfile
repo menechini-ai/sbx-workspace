@@ -20,7 +20,7 @@ RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} && \
 # ---------------------------------------------------------------------------
 # Install uv first
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.local/bin/uv /usr/local/bin/uv && \
+    mv /home/${USERNAME}/.local/bin/uv /usr/local/bin/uv && \
     chmod +x /usr/local/bin/uv
 
 RUN uv tool install \
@@ -34,13 +34,23 @@ RUN uv tool install \
     && browser-harness recordings disable \
     && browser-harness --doctor || true
 
+# Ensure .claude directory is owned by node user before switching
+RUN mkdir -p /home/${USERNAME}/.claude/plugins /home/${USERNAME}/.claude/skills && \
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.claude
+
+# Fix home directory ownership (npm/uv create dirs as root)
+RUN chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
+
+# ---------------------------------------------------------------------------
+# Switch to node user for claude plugin operations
+# ---------------------------------------------------------------------------
+USER ${USERNAME}
+
 # ---------------------------------------------------------------------------
 # Claude Code official plugins
 # ---------------------------------------------------------------------------
-# These run as "node" user so config goes to /home/node/.claude
-USER ${USERNAME}
-
-RUN claude plugin marketplace add anthropics/claude-plugins-official || true && \
+RUN mkdir -p /home/${USERNAME}/.claude/plugins && \
+    claude plugin marketplace add anthropics/claude-plugins-official || true && \
     claude plugin marketplace update claude-plugins-official && \
     claude plugin install superpowers@claude-plugins-official && \
     claude plugin install pyright-lsp@claude-plugins-official && \
@@ -69,4 +79,4 @@ COPY --chown=${USERNAME}:${USERNAME} entrypoint.sh /home/${USERNAME}/entrypoint.
 
 RUN chmod +x /home/${USERNAME}/entrypoint.sh
 
-ENTRYPOINT ["/home/${USERNAME}/entrypoint.sh"]
+ENTRYPOINT ["/home/node/entrypoint.sh"]
