@@ -124,3 +124,4 @@ temp/
 *.rar
 backup/
 backups/
+workspaace/.agents/*
