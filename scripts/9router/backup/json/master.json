@@ -1,0 +1,193 @@
+{
+  "settings": {
+    "comboStrategy": "round-robin",
+    "comboStickyRoundRobinLimit": 3,
+    "fallbackStrategy": "round-robin",
+    "stickyRoundRobinLimit": 3,
+    "providerStrategies": {
+      "anthropic-compatible-eb7fe9ad-f729-423f-a583-9acefe3646bf": {
+        "fallbackStrategy": "round-robin",
+        "stickyRoundRobinLimit": 1
+      },
+      "anthropic-compatible-4204be8f-51d8-44e4-bfa6-c92e5429ebbf": {
+        "fallbackStrategy": "round-robin",
+        "stickyRoundRobinLimit": 1
+      },
+      "anthropic-compatible-c81adce8-ee2f-4e15-bf57-a2088303ea27": {
+        "fallbackStrategy": "round-robin",
+        "stickyRoundRobinLimit": 1
+      }
+    }
+  },
+  "providerConnections": [
+    {
+      "defaultModel": "opencode-thinking-tools",
+      "apiKey": "sk-0de3e4a71ffae2e1-sso8a2-bcdb10df",
+      "testStatus": "active",
+      "providerSpecificData": {
+        "prefix": "rs001",
+        "baseUrl": "http://9router-slave-001:20129/v1",
+        "nodeName": "rs001",
+        "connectionProxyEnabled": false,
+        "connectionProxyUrl": "",
+        "connectionNoProxy": ""
+      },
+      "id": "c0b95a71-1bb6-42b2-9168-a3d96c3369f2",
+      "provider": "anthropic-compatible-4204be8f-51d8-44e4-bfa6-c92e5429ebbf",
+      "authType": "apikey",
+      "name": "rs001",
+      "email": null,
+      "priority": 1,
+      "isActive": true,
+      "createdAt": "2026-08-30T20:22:36.836Z",
+      "updatedAt": "2026-08-30T20:22:36.836Z"
+    },
+    {
+      "defaultModel": "opencode-thinking-tools",
+      "apiKey": "sk-a1eed18320e1407e-zl4na1-aa967696",
+      "testStatus": "active",
+      "providerSpecificData": {
+        "prefix": "rs002",
+        "baseUrl": "http://9router-slave-002:20130/v1",
+        "nodeName": "rs002",
+        "connectionProxyEnabled": false,
+        "connectionProxyUrl": "",
+        "connectionNoProxy": ""
+      },
+      "id": "695c80bf-2c1f-4527-8784-033c2b6b8e47",
+      "provider": "anthropic-compatible-c81adce8-ee2f-4e15-bf57-a2088303ea27",
+      "authType": "apikey",
+      "name": "rs002",
+      "email": null,
+      "priority": 1,
+      "isActive": true,
+      "createdAt": "2026-08-30T21:09:34.824Z",
+      "updatedAt": "2026-08-30T21:09:34.824Z"
+    },
+    {
+      "defaultModel": "opencode-thinking-tools",
+      "apiKey": "sk-84e6135c711c53f1-pyyjma-c0061ae8",
+      "testStatus": "active",
+      "providerSpecificData": {
+        "prefix": "rs003",
+        "baseUrl": "http://9router-slave-003:20131/v1",
+        "nodeName": "rs003",
+        "connectionProxyEnabled": false,
+        "connectionProxyUrl": "",
+        "connectionNoProxy": ""
+      },
+      "id": "0ce439f8-be46-4fe1-9bb2-8032f4b145db",
+      "provider": "anthropic-compatible-65a56d84-b579-4649-83b0-9f8f78993578",
+      "authType": "apikey",
+      "name": "rs003",
+      "email": null,
+      "priority": 1,
+      "isActive": true,
+      "createdAt": "2026-08-30T21:10:27.839Z",
+      "updatedAt": "2026-08-30T21:10:27.839Z"
+    }
+  ],
+  "providerNodes": [
+    {
+      "prefix": "rs001",
+      "baseUrl": "http://9router-slave-001:20129/v1",
+      "id": "anthropic-compatible-4204be8f-51d8-44e4-bfa6-c92e5429ebbf",
+      "type": "anthropic-compatible",
+      "name": "rs001",
+      "createdAt": "2026-08-30T20:21:53.987Z",
+      "updatedAt": "2026-08-30T20:21:53.987Z"
+    },
+    {
+      "prefix": "rs002",
+      "baseUrl": "http://9router-slave-002:20130/v1",
+      "id": "anthropic-compatible-c81adce8-ee2f-4e15-bf57-a2088303ea27",
+      "type": "anthropic-compatible",
+      "name": "rs002",
+      "createdAt": "2026-08-30T21:08:18.040Z",
+      "updatedAt": "2026-08-30T21:08:18.040Z"
+    },
+    {
+      "prefix": "rs003",
+      "baseUrl": "http://9router-slave-003:20131/v1",
+      "id": "anthropic-compatible-65a56d84-b579-4649-83b0-9f8f78993578",
+      "type": "anthropic-compatible",
+      "name": "rs003",
+      "createdAt": "2026-08-30T21:08:40.377Z",
+      "updatedAt": "2026-08-30T21:08:40.377Z"
+    }
+  ],
+  "proxyPools": [],
+  "apiKeys": [],
+  "combos": [
+    {
+      "id": "cbd75da8-8b49-44ab-8d42-da39eee2eb85",
+      "name": "opencode-basic",
+      "kind": null,
+      "models": [
+        "rs001/opencode-basic",
+        "oc/nemotron-3.5-lightning-free",
+        "rs002/opencode-basic",
+        "oc/muse-spark-1.2-contributor-free",
+        "rs003/opencode-basic"
+      ],
+      "createdAt": "2026-08-30T20:23:58.204Z",
+      "updatedAt": "2026-08-30T21:12:31.875Z"
+    },
+    {
+      "id": "78c60336-0951-4d45-8618-edae9d3157b1",
+      "name": "opencode-thinking-tools",
+      "kind": null,
+      "models": [
+        "rs001/opencode-thinking-tools",
+        "oc/nemotron-3-ultra-free",
+        "rs002/opencode-thinking-tools",
+        "oc/deepseek-v4-flash-free",
+        "oc/mimo-v2.5-free",
+        "rs003/opencode-thinking-tools"
+      ],
+      "createdAt": "2026-08-30T20:24:14.702Z",
+      "updatedAt": "2026-08-30T21:13:11.250Z"
+    }
+  ],
+  "modelAliases": {},
+  "customModels": [
+    {
+      "providerAlias": "anthropic-compatible-4204be8f-51d8-44e4-bfa6-c92e5429ebbf",
+      "id": "opencode-thinking-tools",
+      "type": "llm",
+      "name": "opencode-thinking-tools"
+    },
+    {
+      "providerAlias": "anthropic-compatible-4204be8f-51d8-44e4-bfa6-c92e5429ebbf",
+      "id": "opencode-basic",
+      "type": "llm",
+      "name": "opencode-basic"
+    },
+    {
+      "providerAlias": "anthropic-compatible-65a56d84-b579-4649-83b0-9f8f78993578",
+      "id": "opencode-thinking-tools",
+      "type": "llm",
+      "name": "opencode-thinking-tools"
+    },
+    {
+      "providerAlias": "anthropic-compatible-65a56d84-b579-4649-83b0-9f8f78993578",
+      "id": "opencode-basic",
+      "type": "llm",
+      "name": "opencode-basic"
+    },
+    {
+      "providerAlias": "anthropic-compatible-c81adce8-ee2f-4e15-bf57-a2088303ea27",
+      "id": "opencode-basic",
+      "type": "llm",
+      "name": "opencode-basic"
+    },
+    {
+      "providerAlias": "anthropic-compatible-c81adce8-ee2f-4e15-bf57-a2088303ea27",
+      "id": "opencode-thinking-tools",
+      "type": "llm",
+      "name": "opencode-thinking-tools"
+    }
+  ],
+  "mitmAlias": {},
+  "pricing": {}
+}

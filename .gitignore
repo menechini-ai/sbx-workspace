@@ -122,6 +122,7 @@ temp/
 *.tar.gz
 *.zip
 *.rar
-backup/
-backups/
 **/.agents/
+
+
+scripts/9router/data

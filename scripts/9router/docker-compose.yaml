@@ -8,7 +8,8 @@ x-common: &common
       max-size: "10m"
       max-file: "3"
 
-x-resources-master: &resources-master
+x-service-master: &service-master
+  <<: *common
   deploy:
     resources:
       limits:
@@ -18,7 +19,8 @@ x-resources-master: &resources-master
         memory: 256M
         cpus: "0.25"
 
-x-resources-slave: &resources-slave
+x-service-slave: &service-slave
+  <<: *common
   deploy:
     resources:
       limits:
@@ -28,10 +30,6 @@ x-resources-slave: &resources-slave
         memory: 128M
         cpus: "0.125"
 
-x-service-base: &service-base
-  <<: *common
-  <<: *resources-master
-
 services:
   # ──────────────────────────────────────────────
   # 9Router — Free AI API Gateway
@@ -39,7 +37,7 @@ services:
   # Dashboard: http://127.0.0.1:20128/dashboard
   # ──────────────────────────────────────────────
   9router-master:
-    <<: *service-base
+    <<: *service-master
     image: decolua/9router:${NINEROUTER_TAG:-latest}
     container_name: clawbox-9router-master
     pull_policy: missing
@@ -52,6 +50,8 @@ services:
       PORT: "${ROUTER_PORT_MASTER:-20128}"
       HOSTNAME: 0.0.0.0
       ROLE: master
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
     networks:
       - clawbox-net
     healthcheck:
@@ -61,10 +61,8 @@ services:
       retries: 5
       start_period: 20s
 
-
   9router-slave-001:
-    <<: *common
-    <<: *resources-slave
+    <<: *service-slave
     image: decolua/9router:${NINEROUTER_TAG:-latest}
     container_name: clawbox-9router-slave-001
     pull_policy: missing
@@ -77,6 +75,8 @@ services:
       PORT: "${ROUTER_PORT_SLAVE_001:-20129}"
       HOSTNAME: 0.0.0.0
       ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
     networks:
       - clawbox-net
     healthcheck:
@@ -87,8 +87,7 @@ services:
       start_period: 20s
 
   9router-slave-002:
-    <<: *common
-    <<: *resources-slave
+    <<: *service-slave
     image: decolua/9router:${NINEROUTER_TAG:-latest}
     container_name: clawbox-9router-slave-002
     pull_policy: missing
@@ -101,6 +100,8 @@ services:
       PORT: "${ROUTER_PORT_SLAVE_002:-20130}"
       HOSTNAME: 0.0.0.0
       ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
     networks:
       - clawbox-net
     healthcheck:
@@ -111,8 +112,7 @@ services:
       start_period: 20s
 
   9router-slave-003:
-    <<: *common
-    <<: *resources-slave
+    <<: *service-slave
     image: decolua/9router:${NINEROUTER_TAG:-latest}
     container_name: clawbox-9router-slave-003
     pull_policy: missing
@@ -125,6 +125,8 @@ services:
       PORT: "${ROUTER_PORT_SLAVE_003:-20131}"
       HOSTNAME: 0.0.0.0
       ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
     networks:
       - clawbox-net
     healthcheck:

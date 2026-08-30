@@ -2,7 +2,9 @@
 GIT_NAME := $(shell git config user.name 2>/dev/null || echo "Claude Agent")
 GIT_EMAIL := $(shell git config user.email 2>/dev/null || echo "claude-agent@local.internal")
 
-.PHONY: up down run code logs clean build build-base scan-secrets scan-secrets-ci
+NINEROUTER_COMPOSE := scripts/9router/docker-compose.yaml
+
+.PHONY: up down run code logs clean build build-base scan-secrets scan-secrets-ci 9router-up 9router-down 9router-logs lint install-pre-commit
 
 # Constrói a imagem base compartilhada
 build-base:
@@ -55,6 +57,24 @@ rebuild: clean build
 	@echo "Rebuild completo finalizado"
 
 # ============================
+# 9Router — Gateway IA Gratuito
+# ============================
+
+# Inicia 9Router (master + 3 slaves)
+9router-up:
+	@echo "Iniciando 9Router (master + 3 slaves)..."
+	docker compose -f $(NINEROUTER_COMPOSE) up -d
+
+# Para 9Router
+9router-down:
+	@echo "Parando 9Router..."
+	docker compose -f $(NINEROUTER_COMPOSE) down
+
+# Logs do 9Router
+9router-logs:
+	docker compose -f $(NINEROUTER_COMPOSE) logs -f
+
+# ============================
 # Security: Gitleaks
 # ============================
 
@@ -79,7 +99,23 @@ scan-secrets-ci:
 		--redact \
 		--exit-code 1
 
-# Pre-commit hook helper
+# ============================
+# Lint & Pre-commit
+# ============================
+
+# Instala pre-commit hooks (yaml lint + gitleaks)
+install-pre-commit:
+	@echo "Instalando pre-commit hooks..."
+	@pip install pre-commit 2>/dev/null || pip3 install pre-commit
+	pre-commit install
+	@echo "✅ Hooks instalados: check-yaml + gitleaks"
+
+# Roda lint (yaml validation + secrets scan)
+lint:
+	@echo "🔍 Rodando pre-commit (yaml + gitleaks)..."
+	pre-commit run --all-files
+
+# Pre-commit hook helper (fallback manual sem pre-commit)
 install-gitleaks-hook:
 	@echo "Instalando pre-commit hook para gitleaks..."
 	@echo '#!/bin/bash\ndocker run --rm -v $(git rev-parse --show-toplevel):/workspace -w /workspace \

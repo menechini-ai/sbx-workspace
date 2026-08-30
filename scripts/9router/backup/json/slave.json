@@ -1,0 +1,41 @@
+{
+  "settings": {
+    "comboStrategy": "round-robin",
+    "comboStickyRoundRobinLimit": 3,
+    "fallbackStrategy": "round-robin",
+    "stickyRoundRobinLimit": 3
+  },
+  "providerConnections": [],
+  "providerNodes": [],
+  "proxyPools": [],
+  "apiKeys": [],
+  "combos": [
+    {
+      "id": "42b14b7d-c72d-419b-9383-7846658d4a5d",
+      "name": "opencode-thinking-tools",
+      "kind": null,
+      "models": [
+        "oc/deepseek-v4-flash-free",
+        "oc/mimo-v2.5-free",
+        "oc/nemotron-3-ultra-free"
+      ],
+      "createdAt": "2026-08-30T19:56:51.120Z",
+      "updatedAt": "2026-08-30T19:56:51.120Z"
+    },
+    {
+      "id": "7152ebdb-2bcc-4c4b-946b-438c63b1f1b1",
+      "name": "opencode-basic",
+      "kind": null,
+      "models": [
+        "oc/nemotron-3.5-lightning-free",
+        "oc/muse-spark-1.2-contributor-free"
+      ],
+      "createdAt": "2026-08-30T19:56:51.160Z",
+      "updatedAt": "2026-08-30T19:56:51.160Z"
+    }
+  ],
+  "modelAliases": {},
+  "customModels": [],
+  "mitmAlias": {},
+  "pricing": {}
+}
