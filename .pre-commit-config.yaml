@@ -1,0 +1,37 @@
+# Pre-commit configuration for gitleaks
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+        name: gitleaks
+        description: Detect secrets with gitleaks
+        entry: gitleaks detect
+        args:
+          - --source=.
+          - --config=.gitleaks.toml
+          - --verbose
+          - --redact
+          - --exit-code=1
+        language: system
+        stages: [commit, push]
+        types: [text]
+        exclude: ^(\.env-example|\.gitleaks\.toml|INSTALL\.md|README\.md|docs/.*\.md)$
+
+  # Optional: also check with truffleHog for additional coverage
+  # - repo: https://github.com/trufflesecurity/truffleHog
+  #   rev: v3.81.0
+  #   hooks:
+  #     - id: trufflehog
+  #       name: truffleHog
+  #       description: Detect secrets with truffleHog
+  #       entry: trufflehog filesystem
+  #       args:
+  #         - --directory=.
+  #         - --fail
+  #         - --no-verification
+  #       language: system
+  #       stages: [commit, push]

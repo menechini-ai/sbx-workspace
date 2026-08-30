@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(echo \"TS_EXIT=$?\")",
+      "Bash(npm test *)"
+    ]
+  }
+}

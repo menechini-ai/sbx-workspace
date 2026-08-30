@@ -1,0 +1,126 @@
+# ============================
+# Environment & Secrets
+# ============================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.secrets/
+secrets/
+
+# ============================
+# ai-memory data
+# ============================
+.ai-memory/
+~/.ai-memory/
+**/ai-memory-data/
+
+# ============================
+# Docker
+# ============================
+.docker/
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ============================
+# IDE & Editor
+# ============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============================
+# OS
+# ============================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================
+# Logs
+# ============================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ============================
+# Dependencies
+# ============================
+node_modules/
+.pnp
+.pnp.js
+
+# ============================
+# Build outputs
+# ============================
+dist/
+build/
+.out/
+*.tsbuildinfo
+
+# ============================
+# Test coverage
+# ============================
+coverage/
+.nyc_output/
+
+# ============================
+# Cache
+# ============================
+.cache/
+.eslintcache
+.stylelintcache
+.parcel-cache/
+.turbo/
+.vercel
+
+# ============================
+# Temporary files
+# ============================
+*.tmp
+*.temp
+tmp/
+temp/
+*.bak
+*.backup
+
+# ============================
+# Claude Code / OpenCode specific
+# ============================
+.claude/tmp/
+.opencode/tmp/
+*.claude-session
+*.opencode-session
+
+# ============================
+# Git
+# ============================
+.git/
+.git-blob-*
+
+# ============================
+# Backup
+# ============================
+*.tar.gz
+*.zip
+*.rar
+backup/
+backups/

@@ -1,0 +1,244 @@
+# Gitleaks Configuration
+# https://github.com/gitleaks/gitleaks
+
+[config]
+verbose = false
+no-git = false
+redact = true
+exit-code = 1
+
+# ============================
+# Allowlist
+# ============================
+[[allowlist]]
+description = "Allowlist for example/test files"
+files = [
+    ".env-example",
+    "*.example",
+    "*.template",
+    "INSTALL.md",
+    "README.md",
+    "docs/**/*.md"
+]
+
+[[allowlist]]
+description = "Allowlist for placeholder tokens in docs"
+regexes = [
+    "seu_token_super_seguro",
+    "sk-ant-xxxxxxxxxxxxx",
+    "sk-2adc9c65d4874e57-ks79u8-61f33dc6",
+    "memory-2adc9c65d4874e57-ks79u8-61f33dc6",
+    "CHANGE_ME",
+    "YOUR_API_KEY",
+    "YOUR_TOKEN",
+    "REPLACE_ME"
+]
+
+# ============================
+# Custom Rules
+# ============================
+
+# Anthropic API Keys
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API Key"
+regex = '''(?i)(anthropic[_-]?api[_-]?key|anthropic[_-]?key|claude[_-]?api[_-]?key)['\"]?\s*[:=]\s*['\"]?(sk-ant-[a-zA-Z0-9\-_]{20,})['\"]?'''
+tags = ["key", "anthropic", "api"]
+entropy = 3.5
+
+# OpenAI API Keys
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key"
+regex = '''(?i)(openai[_-]?api[_-]?key|openai[_-]?key)['\"]?\s*[:=]\s*['\"]?(sk-[a-zA-Z0-9]{48,})['\"]?'''
+tags = ["key", "openai", "api"]
+entropy = 3.5
+
+# Generic API Keys (sk- prefix)
+[[rules]]
+id = "generic-api-key-sk"
+description = "Generic API Key starting with sk-"
+regex = '''(?i)(api[_-]?key|secret[_-]?key|access[_-]?key)['\"]?\s*[:=]\s*['\"]?(sk-[a-zA-Z0-9\-_]{20,})['\"]?'''
+tags = ["key", "api", "generic"]
+entropy = 3.5
+
+# Bearer Tokens
+[[rules]]
+id = "bearer-token"
+description = "Bearer Token"
+regex = '''(?i)(bearer|authorization)['\"]?\s*[:=]\s*['\"]?(Bearer\s+)?[a-zA-Z0-9\-_\.=]{20,}['\"]?'''
+tags = ["token", "auth", "bearer"]
+entropy = 3.5
+
+# JWT Tokens
+[[rules]]
+id = "jwt-token"
+description = "JWT Token"
+regex = '''(eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,})'''
+tags = ["token", "jwt", "auth"]
+
+# GitHub Tokens
+[[rules]]
+id = "github-token"
+description = "GitHub Personal Access Token"
+regex = '''(?i)(github[_-]?token|gh[_-]?token|github[_-]?pat)['\"]?\s*[:=]\s*['\"]?(gh[pousr]_[a-zA-Z0-9]{36,})['\"]?'''
+tags = ["token", "github", "pat"]
+entropy = 3.5
+
+# GitHub App Tokens
+[[rules]]
+id = "github-app-token"
+description = "GitHub App Installation Token"
+regex = '''(ghs_[a-zA-Z0-9]{36,})'''
+tags = ["token", "github", "app"]
+
+# GitLab Tokens
+[[rules]]
+id = "gitlab-token"
+description = "GitLab Personal Access Token"
+regex = '''(?i)(gitlab[_-]?token|gl[_-]?token)['\"]?\s*[:=]\s*['\"]?(glpat-[a-zA-Z0-9\-_]{20,})['\"]?'''
+tags = ["token", "gitlab", "pat"]
+entropy = 3.5
+
+# Docker Hub / Registry Tokens
+[[rules]]
+id = "docker-token"
+description = "Docker Registry Token"
+regex = '''(?i)(docker[_-]?token|registry[_-]?token)['\"]?\s*[:=]\s*['\"]?([a-zA-Z0-9\-_]{20,})['\"]?'''
+tags = ["token", "docker", "registry"]
+
+# AWS Keys
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key ID"
+regex = '''(?i)(aws[_-]?access[_-]?key|aws[_-]?key[_-]?id)['\"]?\s*[:=]\s*['\"]?(AKIA[0-9A-Z]{16})['\"]?'''
+tags = ["key", "aws", "cloud"]
+entropy = 3.5
+
+[[rules]]
+id = "aws-secret-key"
+description = "AWS Secret Access Key"
+regex = '''(?i)(aws[_-]?secret[_-]?key|aws[_-]?secret)['\"]?\s*[:=]\s*['\"]?([a-zA-Z0-9/+=]{40})['\"]?'''
+tags = ["key", "aws", "cloud"]
+entropy = 4.0
+
+# Google Cloud
+[[rules]]
+id = "gcp-service-account"
+description = "GCP Service Account Key"
+regex = '''(?i)(google[_-]?cloud|gcp|service[_-]?account)['\"]?\s*[:=]\s*['\"]?(\{.*"private_key".*\})['\"]?'''
+tags = ["key", "gcp", "google", "service-account"]
+
+# Database URLs
+[[rules]]
+id = "database-url"
+description = "Database Connection String"
+regex = '''(?i)(database[_-]?url|db[_-]?url|connection[_-]?string)['\"]?\s*[:=]\s*['\"]?(postgres|mysql|mongodb|redis)://[^:]+:[^@]+@[^/]+/\w+['\"]?'''
+tags = ["credential", "database", "connection"]
+
+# Generic Password/Secret in code
+[[rules]]
+id = "generic-secret"
+description = "Generic password/secret assignment"
+regex = '''(?i)(password|passwd|pwd|secret|token|api[_-]?key)['\"]?\s*[:=]\s*['\"][^'"\s]{8,}['\"]'''
+tags = ["secret", "password", "generic"]
+entropy = 3.0
+
+# Private Keys
+[[rules]]
+id = "private-key"
+description = "Private Key (RSA, SSH, PEM)"
+regex = '''-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'''
+tags = ["key", "private", "ssh", "pem"]
+
+# Slack Tokens
+[[rules]]
+id = "slack-token"
+description = "Slack Token"
+regex = '''(?i)(slack[_-]?token|slack[_-]?bot[_-]?token)['\"]?\s*[:=]\s*['\"]?(xox[baprs]-[a-zA-Z0-9\-]{10,})['\"]?'''
+tags = ["token", "slack", "bot"]
+entropy = 3.5
+
+# Stripe Keys
+[[rules]]
+id = "stripe-key"
+description = "Stripe API Key"
+regex = '''(?i)(stripe[_-]?key|stripe[_-]?secret)['\"]?\s*[:=]\s*['\"]?(sk_(live|test)_[a-zA-Z0-9]{24,})['\"]?'''
+tags = ["key", "stripe", "payment"]
+entropy = 3.5
+
+# Vercel Tokens
+[[rules]]
+id = "vercel-token"
+description = "Vercel Token"
+regex = '''(?i)(vercel[_-]?token)['\"]?\s*[:=]\s*['\"]?([a-zA-Z0-9]{20,})['\"]?'''
+tags = ["token", "vercel", "deploy"]
+entropy = 3.5
+
+# Netlify Tokens
+[[rules]]
+id = "netlify-token"
+description = "Netlify Auth Token"
+regex = '''(?i)(netlify[_-]?token|netlify[_-]?auth)['\"]?\s*[:=]\s*['\"]?([a-zA-Z0-9\-_]{20,})['\"]?'''
+tags = ["token", "netlify", "deploy"]
+entropy = 3.5
+
+# Custom: AI_MEMORY_AUTH_TOKEN pattern
+[[rules]]
+id = "ai-memory-auth-token"
+description = "ai-memory Auth Token"
+regex = '''(?i)(ai[_-]?memory[_-]?auth[_-]?token|ai[_-]?memory[_-]?token)['\"]?\s*[:=]\s*['\"]?([a-zA-Z0-9\-_]{20,})['\"]?'''
+tags = ["token", "ai-memory", "auth"]
+entropy = 3.5
+
+# ============================
+# Path Exclusions
+# ============================
+[allowlist]
+paths = [
+    "**.git/**",
+    "**/node_modules/**",
+    "**/vendor/**",
+    "**/.cache/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/*.log",
+    "**/*.min.js",
+    "**/*.map",
+    "**/package-lock.json",
+    "**/yarn.lock",
+    "**/pnpm-lock.yaml",
+    "**/Cargo.lock",
+    "**/go.sum",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.gif",
+    "**/*.ico",
+    "**/*.woff",
+    "**/*.woff2",
+    "**/*.ttf",
+    "**/*.eot",
+    "**/*.pdf",
+    "**/*.zip",
+    "**/*.tar.gz",
+    "**/*.whl",
+    "**/CHANGELOG.md",
+    "**/LICENSE*"
+]
+
+# ============================
+# Commit Message Exclusions
+# ============================
+[allowlist]
+commits = [
+    "chore:",
+    "fix:",
+    "docs:",
+    "style:",
+    "refactor:",
+    "test:",
+    "ci:",
+    "build:"
+]
