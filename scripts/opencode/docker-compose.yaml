@@ -1,0 +1,34 @@
+services:
+  opencode:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: opencode
+    restart: "no"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-8}
+      - ANTHROPIC_DEFAULT_OPUS_MODEL=${ANTHROPIC_DEFAULT_OPUS_MODEL:-claude-opus-4-8}
+      - ANTHROPIC_DEFAULT_SONNET_MODEL=${ANTHROPIC_DEFAULT_SONNET_MODEL:-claude-sonnet-4-8}
+      - ANTHROPIC_DEFAULT_HAIKU_MODEL=${ANTHROPIC_DEFAULT_HAIKU_MODEL:-claude-haiku-4-8}
+      - AI_MEMORY_SERVER_URL=${AI_MEMORY_SERVER_URL:-http://ai-memory:49374}
+      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
+    volumes:
+      - /home/access/SRE/AI/sbx-workspace:/workspace
+      - ~/.gitconfig:/root/.gitconfig:ro
+      - opencode_config:/home/node/.config/opencode
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      - clawbox-net
+
+volumes:
+  opencode_config:
+
+networks:
+  clawbox-net:
+    external: true

@@ -1,0 +1,24 @@
+services:
+  ai-memory:
+    image: akitaonrails/ai-memory:latest
+    container_name: ai-memory
+    restart: unless-stopped
+    user: "${UID}:${GID}"
+    ports:
+      - "49374:49374"
+    volumes:
+      - /home/access/.ai-memory:/data
+    environment:
+      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
+      - AI_MEMORY_LLM_PROVIDER=anthropic
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-8}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      - clawbox-net
+
+networks:
+  clawbox-net:
+    external: true

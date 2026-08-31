@@ -5,7 +5,7 @@ Ambiente de desenvolvimento com **memória de longo prazo** (ai-memory) para age
 ## O que é
 
 - **ai-memory**: Servidor que permite continuidade entre sessões e troca de contexto entre Claude Code e OpenCode
-- **9Router**: Gateway gratuito de API IA com 1 master + 3 slaves ( Round Robin load balancing)
+- **9Router**: Gateway gratuito de API IA com 1 master + 3 slaves (Round Robin load balancing)
 
 ## Quick Start
 
@@ -14,13 +14,61 @@ Ambiente de desenvolvimento com **memória de longo prazo** (ai-memory) para age
 cp .env-example .env
 nano .env  # adicione suas chaves
 
-# 2. Suba tudo
-make up           # servidor ai-memory
-make 9router-up   # 9Router (gateway IA gratuito)
+# 2. Suba o que precisar
+make up SERVICE=ai-memory   # servidor ai-memory
+make up SERVICE=9router     # 9Router (gateway IA gratuito)
 
 # 3. Use
-make cc           # Claude Code com memória
-make code         # OpenCode com memória
+make cc                     # Claude Code com memória
+make code                   # OpenCode com memória
+```
+
+## Comandos
+
+| Comando | Descrição |
+|---------|-----------|
+| `make up SERVICE=ai-memory` | Inicia ai-memory |
+| `make up SERVICE=9router` | Inicia 9Router (master + 3 slaves) |
+| `make cc` | Abre Claude Code com memória |
+| `make code` | Abre OpenCode com memória |
+| `make down` | Para todos os serviços |
+| `make down SERVICE=ai-memory` | Para só ai-memory |
+| `make down SERVICE=9router` | Para só 9Router |
+| `make logs SERVICE=ai-memory` | Logs do ai-memory |
+| `make logs SERVICE=9router` | Logs do 9Router |
+| `make clean` | Remove volumes e limpa tudo |
+| `make clean SERVICE=ai-memory` | Limpa só ai-memory |
+| `make build` | Constrói imagens Dockerfile |
+
+## Estrutura
+
+Cada serviço tem seu próprio `docker-compose.yaml` e `Makefile` em `scripts/`:
+
+```
+.
+├── Makefile                     # Orquestrador raiz (delega para cada serviço)
+├── .env                         # Suas chaves (compartilhado entre todos)
+├── .env-example                 # Template
+├── scripts/
+│   ├── ai-memory/
+│   │   ├── docker-compose.yaml  # Servidor ai-memory
+│   │   └── Makefile
+│   ├── claude-code/
+│   │   ├── docker-compose.yaml  # Container Claude Code
+│   │   ├── Dockerfile
+│   │   ├── entrypoint.sh
+│   │   └── Makefile
+│   ├── opencode/
+│   │   ├── docker-compose.yaml  # Container OpenCode
+│   │   ├── Dockerfile
+│   │   ├── entrypoint.sh
+│   │   └── Makefile
+│   └── 9router/
+│       ├── docker-compose.yaml  # 9Router: master + 3 slaves
+│       ├── Makefile
+│       ├── README.md
+│       └── .env
+└── workspace/                   # Seu código (montado em /workspace)
 ```
 
 ## Arquitetura
@@ -54,49 +102,12 @@ make code         # OpenCode com memória
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## Comandos
-
-| Comando | Descrição |
-|---------|-----------|
-| `make up` | Inicia servidor ai-memory |
-| `make down` | Para todos os serviços |
-| `make cc` | Abre Claude Code com memória |
-| `make code` | Abre OpenCode com memória |
-| `make 9router-up` | Inicia 9Router (master + 3 slaves) |
-| `make 9router-down` | Para 9Router |
-| `make 9router-logs` | Ver logs do 9Router |
-| `make logs` | Ver logs do ai-memory |
-| `make build` | Constrói todas as imagens |
-| `make clean` | Remove volumes e limpa |
-| `make rebuild` | Rebuild completo |
-
 ## Documentação
 
 | Documento | Descrição |
 |-----------|-----------|
 | [INSTALL.md](INSTALL.md) | Guia completo de instalação e uso |
-| [scripts/9router/README.md](scripts/9router/README.md) | Configuração detalhada do 9Router (providers, combos, Round Robin) |
-
-## Estrutura
-
-```
-.
-├── docker-compose.yaml          # Serviços principais (ai-memory, opencode, claude-code)
-├── Makefile                     # Comandos de conveniência
-├── .env                         # Suas chaves (não versionar!)
-├── .env-example                 # Template
-├── INSTALL.md                   # Guia de instalação
-├── scripts/
-│   ├── base/Dockerfile          # Imagem base compartilhada
-│   ├── claude-code/             # Container Claude Code
-│   ├── opencode/                # Container OpenCode
-│   └── 9router/                 # 9Router: master + 3 slaves
-│       ├── docker-compose.yaml  # Definição dos serviços
-│       ├── README.md            # Guia completo de configuração
-│       ├── .env                 # Config do 9Router
-│       └── get-api-keys.sh      # Script de gerenciamento de API keys
-└── workspace/                   # Seu código (montado em /workspace)
-```
+| [scripts/9router/README.md](scripts/9router/README.md) | Configuração detalhada do 9Router |
 
 ## Licença
 
