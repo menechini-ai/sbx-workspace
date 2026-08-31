@@ -4,10 +4,11 @@ services:
     image: akitaonrails/ai-memory:latest
     container_name: ai-memory
     restart: unless-stopped
+    user: "${UID}:${GID}"
     ports:
       - "49374:49374"
     volumes:
-      - ai-memory-data:/data
+      - /home/access/.ai-memory:/data
     environment:
       - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
       - AI_MEMORY_LLM_PROVIDER=anthropic
