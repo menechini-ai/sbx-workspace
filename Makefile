@@ -1,4 +1,4 @@
-SERVICES := ai-memory claude-code opencode 9router
+SERVICES := ai-memory claude-code opencode 9router omniroute
 
 .PHONY: up down logs clean build cc code $(SERVICES)
 
@@ -7,6 +7,7 @@ ai-memory:; @true
 claude-code:; @true
 opencode:; @true
 9router:; @true
+omniroute:; @true
 
 # make up SERVICE=ai-memory / make up cc / make up code
 up:
@@ -20,10 +21,10 @@ up:
 
 # Atalhos
 cc:
-	cd scripts/claude-code && make up
+	cd scripts/claude-code && make run
 
 code:
-	cd scripts/opencode && make up
+	cd scripts/opencode && make run
 
 # make down SERVICE=ai-memory | make down (todos)
 down:
