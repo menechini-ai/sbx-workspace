@@ -1,14 +1,7 @@
 #!/bin/bash
 set -e
 
-# Ensure cache directory exists and is writable
-mkdir -p /home/node/.cache/ai-memory/native-runner
+ai-memory install-mcp   --client opencode --apply
+ai-memory install-hooks --agent  opencode --apply   # gera plugin TS em ~/.config/opencode/plugins/
 
-echo "Iniciando OpenCode via ai-memory (managed mode)..."
-
-# ai-memory run handles:
-# - MCP configuration
-# - Lifecycle hooks installation  
-# - Session continuity (handoffs)
-# - Native session resume
-exec ai-memory run opencode "$@"
+exec opencode "$@"

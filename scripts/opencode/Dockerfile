@@ -1,33 +1,13 @@
-# OpenCode image extending from base
-# Adds: opencode-ai
+FROM node:22-slim
 
-FROM base:latest
+RUN npm install -g opencode-ai
 
-ARG OPENCODE_VERSION=latest
-ARG USERNAME=node
+RUN apt-get update && apt-get install -y curl git ca-certificates && \
+    curl https://mise.run | sh
+ENV PATH="/root/.local/bin:/root/.local/share/mise/shims:${PATH}"
+RUN mise use -g github:akitaonrails/ai-memory
 
-# Switch to root for npm global install
-USER root
-
-# ---------------------------------------------------------------------------
-# OpenCode
-# ---------------------------------------------------------------------------
-RUN npm install -g opencode-ai@${OPENCODE_VERSION} && \
-    npm cache clean --force
-
-# Fix home directory ownership (npm creates dirs as root)
-RUN chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}
-
-# ---------------------------------------------------------------------------
-# Switch back to node user
-# ---------------------------------------------------------------------------
-USER ${USERNAME}
-
-# ---------------------------------------------------------------------------
-# Entrypoint - uses ai-memory managed run
-# ---------------------------------------------------------------------------
-COPY --chown=${USERNAME}:${USERNAME} entrypoint.sh /home/${USERNAME}/entrypoint.sh
-
-RUN chmod +x /home/${USERNAME}/entrypoint.sh
-
-ENTRYPOINT ["/home/node/entrypoint.sh"]
+WORKDIR /workspace
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

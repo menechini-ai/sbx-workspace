@@ -1,13 +1,4 @@
 services:
-  # Imagem base compartilhada (build-only, não roda como serviço)
-  base:
-    build:
-      context: ./scripts/base
-      dockerfile: Dockerfile
-    # Tag explícita para que os outros Dockerfiles possam usar FROM base:latest
-    image: base:latest
-    # Não inicia como serviço - apenas para build
-
   # Servidor de Memória Longa do Akita
   ai-memory:
     image: akitaonrails/ai-memory:latest
@@ -16,10 +7,11 @@ services:
     ports:
       - "49374:49374"
     volumes:
-      - /home/access/.ai-memory:/data
+      - ai-memory-data:/data
     environment:
-      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN:-seu_token_super_seguro}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
+      - AI_MEMORY_LLM_PROVIDER=anthropic
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
       - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-8}
     extra_hosts:
@@ -42,17 +34,8 @@ services:
       - ANTHROPIC_DEFAULT_OPUS_MODEL=${ANTHROPIC_DEFAULT_OPUS_MODEL:-claude-opus-4-8}
       - ANTHROPIC_DEFAULT_SONNET_MODEL=${ANTHROPIC_DEFAULT_SONNET_MODEL:-claude-sonnet-4-8}
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=${ANTHROPIC_DEFAULT_HAIKU_MODEL:-claude-haiku-4-8}
-
-      # Integração com ai-memory (para o ai-memory CLI wrapper)
-      - AI_MEMORY_URL=http://host.docker.internal:49374
-      - AI_MEMORY_SERVER_URL=http://host.docker.internal:49374
-      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN:-seu_token_super_seguro}
-      
-      # Herda o usuário do Git do seu computador (ajuste se preferir fixar valores)
-      - GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-Adilson Menechini}
-      - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-adilsonmenechini@local.internal}
-      - GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-Adilson Menechini}
-      - GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-adilsonmenechini@local.internal}
+      - AI_MEMORY_SERVER_URL=${AI_MEMORY_SERVER_URL:-http://ai-memory:49374}
+      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
     volumes:
       # Workspace do projeto
       - .:/workspace
@@ -83,31 +66,10 @@ services:
       - ANTHROPIC_DEFAULT_OPUS_MODEL=${ANTHROPIC_DEFAULT_OPUS_MODEL:-claude-opus-4-8}
       - ANTHROPIC_DEFAULT_SONNET_MODEL=${ANTHROPIC_DEFAULT_SONNET_MODEL:-claude-sonnet-4-8}
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=${ANTHROPIC_DEFAULT_HAIKU_MODEL:-claude-haiku-4-8}
-      - CLAUDE_THEME=${CLAUDE_THEME:-dark}
-      - CLAUDE_HAS_COMPLETED_ONBOARDING=${CLAUDE_HAS_COMPLETED_ONBOARDING:-true}
-      - CLAUDE_AUTO_APPROVE=${CLAUDE_AUTO_APPROVE:-true}
-      - CLAUDE_CODE_EFFORT_LEVEL=${CLAUDE_CODE_EFFORT_LEVEL:-max}
-      - CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=${CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}
-      - CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=${CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT:-1}
-      - CLAUADE_CODE_MAX_TOKENS=${CLAUADE_CODE_MAX_TOKENS:-100000}
-      - CLAUADE_CODE_MAX_RETRIES=${CLAUADE_CODE_MAX_RETRIES:-15}
-      - API_TIMEOUT=${API_TIMEOUT:-60000000}
-
-      - BASH_DEFAULT_TIMEOUT_MS=${BASH_DEFAULT_TIMEOUT_MS:-1800000}    #30 minutes
-      - BASH_MAX_TIMEOUT_MS=${BASH_MAX_TIMEOUT_MS:-7200000}         #120 minutes
-
-      - TZ=America/Sao_Paulo
-
-      # Integração com ai-memory (para o ai-memory CLI wrapper)
-      - AI_MEMORY_URL=http://host.docker.internal:49374
-      - AI_MEMORY_SERVER_URL=http://host.docker.internal:49374
-      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN:-seu_token_super_seguro}
-      
-      # Herda o usuário do Git do seu computador (ajuste se preferir fixar valores)
-      - GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-Adilson Menechini}
-      - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-adilsonmenechini@local.internal}
-      - GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-Adilson Menechini}
-      - GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-adilsonmenechini@local.internal}
+      - CLAUDE_CODE_MAX_CONTEXT_TOKENS=100000
+      - CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1
+      - AI_MEMORY_SERVER_URL=${AI_MEMORY_SERVER_URL:-http://ai-memory:49374}
+      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
     volumes:
       - ./workspace:/workspace
       - .claude:/workspace/.claude:rw
@@ -130,3 +92,4 @@ volumes:
 networks:
   ai_network:
     driver: bridge
+
