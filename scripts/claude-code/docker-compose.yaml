@@ -17,8 +17,8 @@ services:
       - AI_MEMORY_SERVER_URL=${AI_MEMORY_SERVER_URL:-http://ai-memory:49374}
       - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
     volumes:
-      - ../../workspace:/workspace
-      - ../../.claude:/workspace/.claude:rw
+      - ${CLAUDE_WORKSPACE_VOLUME:-../../workspace:/workspace}
+      - ${CLAUDE_CLAUDE_VOLUME:-../../.claude:/workspace/.claude:rw}
       - claude_config:/home/node/.claude
     working_dir: /workspace
     tty: true

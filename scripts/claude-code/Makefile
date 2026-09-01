@@ -1,11 +1,13 @@
 COMPOSE := docker compose --env-file ../../.env
 GIT_NAME := $(shell git config user.name 2>/dev/null || echo "Agent")
 GIT_EMAIL := $(shell git config user.email 2>/dev/null || echo "agent@local")
+CLAUDE_WORKSPACE_VOLUME ?= ../../workspace:/workspace
+CLAUDE_CLAUDE_VOLUME ?= ../../.claude:/workspace/.claude:rw
 
 .PHONY: up down run logs clean
 
 up:
-	$(COMPOSE) up -d
+	CLAUDE_WORKSPACE_VOLUME=$(CLAUDE_WORKSPACE_VOLUME) CLAUDE_CLAUDE_VOLUME=$(CLAUDE_CLAUDE_VOLUME) $(COMPOSE) up -d  --remove-orphans
 
 run:
 	@echo "Iniciando Claude Code..."
@@ -13,13 +15,13 @@ run:
 	GIT_AUTHOR_EMAIL="$(GIT_EMAIL)" \
 	GIT_COMMITTER_NAME="$(GIT_NAME)" \
 	GIT_COMMITTER_EMAIL="$(GIT_EMAIL)" \
-	$(COMPOSE) run --rm claude-code
+	CLAUDE_WORKSPACE_VOLUME=$(CLAUDE_WORKSPACE_VOLUME) CLAUDE_CLAUDE_VOLUME=$(CLAUDE_CLAUDE_VOLUME) $(COMPOSE) run --rm claude-code
 
 down:
-	$(COMPOSE) down
+	CLAUDE_WORKSPACE_VOLUME=$(CLAUDE_WORKSPACE_VOLUME) CLAUDE_CLAUDE_VOLUME=$(CLAUDE_CLAUDE_VOLUME) $(COMPOSE) down
 
 logs:
-	$(COMPOSE) logs -f
+	CLAUDE_WORKSPACE_VOLUME=$(CLAUDE_WORKSPACE_VOLUME) CLAUDE_CLAUDE_VOLUME=$(CLAUDE_CLAUDE_VOLUME) $(COMPOSE) logs -f
 
 clean:
-	$(COMPOSE) down -v
+	CLAUDE_WORKSPACE_VOLUME=$(CLAUDE_WORKSPACE_VOLUME) CLAUDE_CLAUDE_VOLUME=$(CLAUDE_CLAUDE_VOLUME) $(COMPOSE) down -v

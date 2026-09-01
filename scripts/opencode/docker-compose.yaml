@@ -15,8 +15,8 @@ services:
       - AI_MEMORY_SERVER_URL=${AI_MEMORY_SERVER_URL:-http://ai-memory:49374}
       - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
     volumes:
-      - /home/access/SRE/AI/sbx-workspace:/workspace
-      - ~/.gitconfig:/root/.gitconfig:ro
+      - ${OPENCODE_WORKSPACE_VOLUME:-../../workspace:/workspace}
+      - ${OPENCODE_GITCONFIG_VOLUME:-~/.gitconfig:/root/.gitconfig:ro}
       - opencode_config:/home/node/.config/opencode
     working_dir: /workspace
     tty: true

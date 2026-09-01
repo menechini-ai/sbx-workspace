@@ -1,15 +1,16 @@
 COMPOSE := docker compose --env-file ../../.env
+AI_MEMORY_VOLUME ?= ../../Vault/ai-memory:/data
 
 .PHONY: up down logs clean
 
 up:
-	$(COMPOSE) up -d
+	AI_MEMORY_VOLUME=$(AI_MEMORY_VOLUME) $(COMPOSE) up -d  --remove-orphans
 
 down:
-	$(COMPOSE) down
+	AI_MEMORY_VOLUME=$(AI_MEMORY_VOLUME) $(COMPOSE) down
 
 logs:
-	$(COMPOSE) logs -f
+	AI_MEMORY_VOLUME=$(AI_MEMORY_VOLUME) $(COMPOSE) logs -f
 
 clean:
-	$(COMPOSE) down -v
+	AI_MEMORY_VOLUME=$(AI_MEMORY_VOLUME) $(COMPOSE) down -v

@@ -94,7 +94,7 @@ COMPOSE := docker compose
 .PHONY: up down logs clean
 
 up:
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d  --remove-orphans
 
 down:
 	$(COMPOSE) down
@@ -189,7 +189,7 @@ GIT_EMAIL := $(shell git config user.email 2>/dev/null || echo "agent@local")
 .PHONY: up down run logs clean
 
 up:
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d  --remove-orphans
 
 run:
 	@echo "Iniciando Claude Code..."
@@ -281,7 +281,7 @@ GIT_EMAIL := $(shell git config user.email 2>/dev/null || echo "agent@local")
 .PHONY: up down run logs clean
 
 up:
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d  --remove-orphans
 
 run:
 	@echo "Iniciando OpenCode..."
@@ -316,7 +316,7 @@ COMPOSE := docker compose
 .PHONY: up down logs clean
 
 up:
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d  --remove-orphans
 
 down:
 	$(COMPOSE) down

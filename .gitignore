@@ -122,7 +122,11 @@ temp/
 *.tar.gz
 *.zip
 *.rar
-**/.agents/
 
+# ============================
+# Vault (memory)
+# ============================
+Vault/ai-memory/
+docs/superpowers
 
 scripts/9router/data

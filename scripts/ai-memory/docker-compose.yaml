@@ -7,7 +7,7 @@ services:
     ports:
       - "49374:49374"
     volumes:
-      - /home/access/.ai-memory:/data
+      - ${AI_MEMORY_VOLUME:-../../Vault/ai-memory:/data}
     environment:
       - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
       - AI_MEMORY_LLM_PROVIDER=anthropic
