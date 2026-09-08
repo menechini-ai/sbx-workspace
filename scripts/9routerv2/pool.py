@@ -1719,6 +1719,38 @@ networks:
 
 
 # ============================================================================
+# ENV FILE GENERATION
+# ============================================================================
+
+def generate_env(num_slaves: int) -> str:
+    """Generate .env file with port assignments."""
+    base_port = 20129
+    lines = [
+        "# Clawbox — Providers Environment",
+        "TZ=America/Sao_Paulo",
+        "ROUTER_PORT_MASTER=20128",
+    ]
+    for i in range(1, num_slaves + 1):
+        slave_num = f"{i:03d}"
+        port = base_port + i - 1
+        lines.append(f"ROUTER_PORT_SLAVE_{slave_num}={port}")
+    lines.extend([
+        "ROUTER_DEBUG=false",
+        "",
+        "JWT_SECRET=N7ZndMLMYqJu8QLRtY+dE1VynAdESAJfc7maXp+lHqY=",
+        "INITIAL_PASSWORD=123456",
+        "",
+        "# Tor Proxy",
+        "TOR_SOCKS_PORT=9050",
+        "TOR_HTTP_PORT=8118",
+        "TOR_PASSWORD=password",
+        "TOR_CHECK=false",
+        "TOR_DEBUG=false",
+    ])
+    return "\n".join(lines) + "\n"
+
+
+# ============================================================================
 # SLAVE ADD / DELETE
 # ============================================================================
 
