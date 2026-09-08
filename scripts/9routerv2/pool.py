@@ -52,7 +52,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -1852,7 +1854,6 @@ def scale_pool(
     # 5. Run docker compose
     if not dry_run:
         info("Executando docker compose up -d...")
-        import subprocess
         result = subprocess.run(
             ["docker", "compose", "up", "-d"],
             cwd=BASE_DIR,
@@ -1872,9 +1873,8 @@ def scale_pool(
     # 6. Sync to master (skip on scale-down — slaves removed, not added)
     if not no_sync and not dry_run and not is_scale_down:
         info("Aguardando containers iniciarem...")
-        import subprocess
+        expected = num_slaves + 2  # slaves + master + tor
         for attempt in range(10):
-            import time
             time.sleep(2)
             check = subprocess.run(
                 ["docker", "compose", "ps", "--format", "json"],
@@ -1883,13 +1883,14 @@ def scale_pool(
                 text=True,
             )
             if check.returncode == 0:
-                import json as _json
                 running = sum(
                     1 for line in check.stdout.strip().split("\n")
-                    if line and _json.loads(line).get("State") == "running"
+                    if line and json.loads(line).get("State") == "running"
                 )
-                if running >= num_slaves + 2:  # slaves + master + tor
+                if running >= expected:
                     break
+        else:
+            warning("Containers podem não estar totalmente prontos")
         info("Sincronizando com master...")
         sync_pool(config, dry_run=False)
 
