@@ -1751,6 +1751,38 @@ def generate_env(num_slaves: int) -> str:
 
 
 # ============================================================================
+# CONFIG UPDATE & DATA DIRECTORY CREATION
+# ============================================================================
+
+def update_config_for_scale(config: dict[str, Any], num_slaves: int) -> dict[str, Any]:
+    """Update config.json with N slaves."""
+    base_port = 20129
+    password = config["defaults"].get("password", "123456")
+    slaves = []
+    for i in range(1, num_slaves + 1):
+        slave_num = f"{i:03d}"
+        port = base_port + i - 1
+        slaves.append({
+            "name": f"rs{slave_num}",
+            "host": f"localhost:{port}",
+            "docker_host": f"9router-slave-{slave_num}:{port}",
+            "password": password,
+        })
+    config["slaves"] = slaves
+    return config
+
+
+def create_data_directories(num_slaves: int) -> None:
+    """Create data directories for each slave."""
+    base_dir = BASE_DIR / "data" / "9router" / "slave"
+    for i in range(1, num_slaves + 1):
+        slave_num = f"{i:03d}"
+        slave_dir = base_dir / slave_num
+        slave_dir.mkdir(parents=True, exist_ok=True)
+        info(f"Diretório: {slave_dir}")
+
+
+# ============================================================================
 # SLAVE ADD / DELETE
 # ============================================================================
 
