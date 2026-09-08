@@ -1788,7 +1788,7 @@ def scale_pool(
     dry_run: bool = False,
     no_sync: bool = False,
 ) -> None:
-    """Scale pool to N slaves."""
+    """Scale pool to N slaves (1-50)."""
     title(f"SCALE → {num_slaves} slaves")
 
     if num_slaves < 1:
@@ -1800,17 +1800,18 @@ def scale_pool(
 
     current_count = len(config["slaves"])
 
-    # Scale down
-    if num_slaves < current_count:
-        info(f"Removendo {current_count - num_slaves} slaves...")
-        config["slaves"] = config["slaves"][:num_slaves]
-        if not dry_run:
-            save_config(config)
-            success(f"config.json atualizado ({num_slaves} slaves)")
-        warning("Diretórios de dados NÃO foram removidos (segurança)")
+    # No-op
+    if num_slaves == current_count:
+        info(f"Pool já tem {num_slaves} slaves — nada a fazer")
         return
 
-    # Scale up
+    is_scale_down = num_slaves < current_count
+
+    if is_scale_down:
+        info(f"Removendo {current_count - num_slaves} slaves...")
+    else:
+        info(f"Adicionando {num_slaves - current_count} slaves...")
+
     # 1. Generate docker-compose.yaml
     info("Gerando docker-compose.yaml...")
     compose_content = generate_docker_compose(config, num_slaves)
@@ -1833,10 +1834,11 @@ def scale_pool(
             f.write(env_content)
         success(f".env atualizado ({num_slaves} slaves)")
 
-    # 3. Create data directories
-    info("Criando diretórios de dados...")
-    if not dry_run:
-        create_data_directories(num_slaves)
+    # 3. Create data directories (only for new slaves)
+    if not is_scale_down:
+        info("Criando diretórios de dados...")
+        if not dry_run:
+            create_data_directories(num_slaves)
 
     # 4. Update config.json
     info("Atualizando config.json...")
@@ -1860,18 +1862,43 @@ def scale_pool(
         if result.returncode == 0:
             success("docker compose up -d concluído")
         else:
-            error(f"docker compose up -d falhou: {result.stderr}")
+            error(f"docker compose up -d falhou:")
+            if result.stdout:
+                info(result.stdout.strip())
+            if result.stderr:
+                error(result.stderr.strip())
             return
 
-    # 6. Sync to master
-    if not no_sync and not dry_run:
+    # 6. Sync to master (skip on scale-down — slaves removed, not added)
+    if not no_sync and not dry_run and not is_scale_down:
+        info("Aguardando containers iniciarem...")
+        import subprocess
+        for attempt in range(10):
+            import time
+            time.sleep(2)
+            check = subprocess.run(
+                ["docker", "compose", "ps", "--format", "json"],
+                cwd=BASE_DIR,
+                capture_output=True,
+                text=True,
+            )
+            if check.returncode == 0:
+                import json as _json
+                running = sum(
+                    1 for line in check.stdout.strip().split("\n")
+                    if line and _json.loads(line).get("State") == "running"
+                )
+                if running >= num_slaves + 2:  # slaves + master + tor
+                    break
         info("Sincronizando com master...")
-        import time
-        time.sleep(5)  # Wait for containers to start
         sync_pool(config, dry_run=False)
 
     print()
-    success(f"Pool escalado para {num_slaves} slaves!")
+    if is_scale_down:
+        warning(f"Pool reduzido para {num_slaves} slaves")
+        warning("Diretórios de dados antigos NÃO foram removidos (segurança)")
+    else:
+        success(f"Pool escalado para {num_slaves} slaves!")
     info(f"Portas: 20128 (master), 20129-{20128 + num_slaves} (slaves)")
 
 
