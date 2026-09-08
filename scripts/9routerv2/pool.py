@@ -1782,6 +1782,99 @@ def create_data_directories(num_slaves: int) -> None:
         info(f"Diretório: {slave_dir}")
 
 
+def scale_pool(
+    config: dict[str, Any],
+    num_slaves: int,
+    dry_run: bool = False,
+    no_sync: bool = False,
+) -> None:
+    """Scale pool to N slaves."""
+    title(f"SCALE → {num_slaves} slaves")
+
+    if num_slaves < 1:
+        error("Número de slaves deve ser >= 1")
+        return
+    if num_slaves > 50:
+        error("Número máximo de slaves: 50")
+        return
+
+    current_count = len(config["slaves"])
+
+    # Scale down
+    if num_slaves < current_count:
+        info(f"Removendo {current_count - num_slaves} slaves...")
+        config["slaves"] = config["slaves"][:num_slaves]
+        if not dry_run:
+            save_config(config)
+            success(f"config.json atualizado ({num_slaves} slaves)")
+        warning("Diretórios de dados NÃO foram removidos (segurança)")
+        return
+
+    # Scale up
+    # 1. Generate docker-compose.yaml
+    info("Gerando docker-compose.yaml...")
+    compose_content = generate_docker_compose(config, num_slaves)
+    if dry_run:
+        info("[dry-run] escreveria docker-compose.yaml")
+    else:
+        compose_path = BASE_DIR / "docker-compose.yaml"
+        with compose_path.open("w", encoding="utf-8") as f:
+            f.write(compose_content)
+        success(f"docker-compose.yaml atualizado ({num_slaves} slaves)")
+
+    # 2. Generate .env
+    info("Gerando .env...")
+    env_content = generate_env(num_slaves)
+    if dry_run:
+        info("[dry-run] escreveria .env")
+    else:
+        env_path = BASE_DIR / ".env"
+        with env_path.open("w", encoding="utf-8") as f:
+            f.write(env_content)
+        success(f".env atualizado ({num_slaves} slaves)")
+
+    # 3. Create data directories
+    info("Criando diretórios de dados...")
+    if not dry_run:
+        create_data_directories(num_slaves)
+
+    # 4. Update config.json
+    info("Atualizando config.json...")
+    config = update_config_for_scale(config, num_slaves)
+    if dry_run:
+        info("[dry-run] escreveria config.json")
+    else:
+        save_config(config)
+        success(f"config.json atualizado ({num_slaves} slaves)")
+
+    # 5. Run docker compose
+    if not dry_run:
+        info("Executando docker compose up -d...")
+        import subprocess
+        result = subprocess.run(
+            ["docker", "compose", "up", "-d"],
+            cwd=BASE_DIR,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            success("docker compose up -d concluído")
+        else:
+            error(f"docker compose up -d falhou: {result.stderr}")
+            return
+
+    # 6. Sync to master
+    if not no_sync and not dry_run:
+        info("Sincronizando com master...")
+        import time
+        time.sleep(5)  # Wait for containers to start
+        sync_pool(config, dry_run=False)
+
+    print()
+    success(f"Pool escalado para {num_slaves} slaves!")
+    info(f"Portas: 20128 (master), 20129-{20128 + num_slaves} (slaves)")
+
+
 # ============================================================================
 # SLAVE ADD / DELETE
 # ============================================================================
@@ -1968,6 +2061,27 @@ def main() -> None:
         help="Arquivo de saída (padrão: backup-YYYYMMDD-HHMMSS.json)",
     )
 
+    # scale
+    scale_parser = subparsers.add_parser(
+        "scale",
+        help="Escalar pool para N slaves",
+    )
+    scale_parser.add_argument(
+        "num_slaves",
+        type=int,
+        help="Número de slaves (ex: 6)",
+    )
+    scale_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simular sem alterar nada",
+    )
+    scale_parser.add_argument(
+        "--no-sync",
+        action="store_true",
+        help="Não executar sync após criar slaves",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1997,6 +2111,14 @@ def main() -> None:
 
     elif args.command == "backup":
         backup_pool(config, output=args.output)
+
+    elif args.command == "scale":
+        scale_pool(
+            config,
+            args.num_slaves,
+            dry_run=args.dry_run,
+            no_sync=args.no_sync,
+        )
 
 
 if __name__ == "__main__":
