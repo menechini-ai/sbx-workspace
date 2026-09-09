@@ -183,6 +183,30 @@ python pool.py backup
 python pool.py backup --output backup.json
 ```
 
+### pool.py clean
+
+Remove tudo: containers, dados, configs. Reseta para 1 master + 1 slave.
+
+```bash
+python pool.py clean           # Remove tudo e sobe limpo
+python pool.py clean --dry-run # Simula sem alterar
+```
+
+**O que faz:**
+1. `docker compose down -v --remove-orphans` — para e remove todos os containers
+2. Remove `data/9router/master` e `data/9router/slave/NNN`
+3. Reseta `config.json` para 1 slave
+4. Gera `docker-compose.yaml` e `.env` para 1 slave
+5. Sobe com 1 master + 1 slave limpo
+
+**Depois rode:** `python pool.py sync` para configurar
+
+**Se der erro de permissão:**
+```bash
+sudo rm -rf scripts/9routerv2/data/9router/master
+sudo rm -rf scripts/9routerv2/data/9router/slave
+```
+
 ## Portas
 
 | Serviço | Porta | Uso |

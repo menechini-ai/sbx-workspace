@@ -2029,9 +2029,20 @@ def clean_pool(
     info("Removendo diretórios de dados...")
     import shutil
 
-    data_dir = BASE_DIR / "data" / "9router"
-    if data_dir.exists():
-        for item in data_dir.iterdir():
+    # Remover data/9router/master
+    master_data = BASE_DIR / "data" / "9router" / "master"
+    if master_data.exists():
+        try:
+            shutil.rmtree(master_data)
+            info(f"removido: {master_data}")
+        except PermissionError:
+            warning(f"sem permissão: {master_data}")
+            info(f"  execute: sudo rm -rf {master_data}")
+
+    # Remover data/9router/slave/NNN (cada slave individualmente)
+    slave_data_base = BASE_DIR / "data" / "9router" / "slave"
+    if slave_data_base.exists():
+        for item in slave_data_base.iterdir():
             if item.is_dir():
                 try:
                     shutil.rmtree(item)
