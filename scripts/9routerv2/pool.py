@@ -1837,19 +1837,19 @@ def scale_pool(
         save_config(config)
         success(f"config.json atualizado ({num_slaves} slaves)")
 
-    # 5. Run docker compose
+    # 5. Run docker compose (com --remove-orphans para limpar containers antigos)
     if not dry_run:
-        info("Executando docker compose up -d...")
+        info("Executando docker compose up -d --remove-orphans...")
         result = subprocess.run(
-            ["docker", "compose", "up", "-d"],
+            ["docker", "compose", "up", "-d", "--remove-orphans"],
             cwd=BASE_DIR,
             capture_output=True,
             text=True,
         )
         if result.returncode == 0:
-            success("docker compose up -d concluído")
+            success("docker compose up -d --remove-orphans concluído")
         else:
-            error(f"docker compose up -d falhou:")
+            error(f"docker compose up -d --remove-orphans falhou:")
             if result.stdout:
                 info(result.stdout.strip())
             if result.stderr:
@@ -1986,6 +1986,107 @@ def backup_pool(
 
 
 # ============================================================================
+# CLEAN
+# ============================================================================
+
+
+def clean_pool(
+    config: dict[str, Any],
+    dry_run: bool = False,
+) -> None:
+    """Limpa tudo: containers, dados, configs."""
+
+    title("CLEAN — Remover tudo")
+
+    master = master_instance(config)
+    slaves = slave_instances(config)
+    total = len(slaves) + 2  # slaves + master + tor
+
+    info(f"Containers para remover: {total}")
+    info(f"  - clawbox-tor")
+    info(f"  - clawbox-9router-master")
+    for slave in slaves:
+        info(f"  - clawbox-{slave.name}")
+
+    if dry_run:
+        info("[dry-run] nada será removido")
+        return
+
+    # 1. Docker compose down
+    info("Parando containers...")
+    result = subprocess.run(
+        ["docker", "compose", "down", "-v", "--remove-orphans"],
+        cwd=BASE_DIR,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        success("containers removidos")
+    else:
+        error(f"docker compose down falhou: {result.stderr}")
+
+    # 2. Remover data directories
+    info("Removendo diretórios de dados...")
+    import shutil
+
+    data_dir = BASE_DIR / "data" / "9router"
+    if data_dir.exists():
+        for item in data_dir.iterdir():
+            if item.is_dir():
+                try:
+                    shutil.rmtree(item)
+                    info(f"removido: {item}")
+                except PermissionError:
+                    warning(f"sem permissão: {item}")
+                    info(f"  execute: sudo rm -rf {item}")
+
+    # 3. Reset config.json para 1 slave
+    info("Resetando config.json para 1 slave...")
+    config["slaves"] = [
+        {
+            "name": "rs001",
+            "host": "localhost:20129",
+            "docker_host": "9router-slave-001:20129",
+            "password": "123456",
+        }
+    ]
+    save_config(config)
+    success("config.json resetado (1 slave)")
+
+    # 4. Gerar docker-compose.yaml e .env para 1 slave
+    info("Gerando docker-compose.yaml para 1 slave...")
+    compose_content = generate_docker_compose(config, 1)
+    compose_path = BASE_DIR / "docker-compose.yaml"
+    with compose_path.open("w", encoding="utf-8") as f:
+        f.write(compose_content)
+    success("docker-compose.yaml atualizado")
+
+    info("Gerando .env para 1 slave...")
+    env_content = generate_env(1)
+    env_path = BASE_DIR / ".env"
+    with env_path.open("w", encoding="utf-8") as f:
+        f.write(env_content)
+    success(".env atualizado")
+
+    # 5. Subir com 1 slave limpo
+    info("Subindo com 1 slave limpo...")
+    result = subprocess.run(
+        ["docker", "compose", "up", "-d"],
+        cwd=BASE_DIR,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        success("docker compose up -d concluído")
+    else:
+        error(f"docker compose up -d falhou: {result.stderr}")
+
+    print()
+    success("Pool limpo! 1 master + 1 slave")
+    info("Execute 'python pool.py sync' para configurar")
+
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -2095,6 +2196,17 @@ def main() -> None:
         help="Não executar sync após criar slaves",
     )
 
+    # clean
+    clean_parser = subparsers.add_parser(
+        "clean",
+        help="Limpar tudo: containers, dados, configs",
+    )
+    clean_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simular sem alterar nada",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -2131,6 +2243,12 @@ def main() -> None:
             args.num_slaves,
             dry_run=args.dry_run,
             no_sync=args.no_sync,
+        )
+
+    elif args.command == "clean":
+        clean_pool(
+            config,
+            dry_run=args.dry_run,
         )
 
 
