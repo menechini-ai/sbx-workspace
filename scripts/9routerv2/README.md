@@ -36,43 +36,56 @@ Gerencia um pool de 9Router com 1 Master + N Slaves (1-15) usando Round Robin lo
 ## Início Rápido
 
 ```bash
-# 1. Subir com 1 slave
-docker compose up -d
+# 1. Criar pool básico (1 master + 1 slave)
+python3 pool.py create
 
-# 2. Sincronizar com master (cria providers, combos, API keys)
-python pool.py sync
-
-# 3. Usar a API key do master nos clientes
+# 2. Usar a API key do master nos clientes
 ```
 
 ## Comandos
+
+### pool.py create
+
+Cria pool básico: 1 master + 1 slave, sobe containers e sincroniza.
+
+```bash
+python3 pool.py create
+```
+
+**O que faz:**
+1. Reseta config.json para 1 slave
+2. Gera docker-compose.yaml e .env
+3. Executa `docker compose up -d --remove-orphans`
+4. Aguarda containers ficarem prontos
+5. Executa `sync` (health check + combos + providers + API key)
+
+**Opções:**
+```bash
+python3 pool.py create --dry-run  # Simula sem alterar
+```
 
 ### pool.py list
 
 Lista a configuração atual do pool.
 
 ```bash
-python pool.py list
+python3 pool.py list
 ```
 
 **Saída:**
 ```
 9ROUTER POOL
-──────────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────────
 Master: localhost:20128
-Slaves: 3
+Slaves: 1
   - rs001 → localhost:20129
-  - rs002 → localhost:20130
-  - rs003 → localhost:20131
 
-Models: 4
+Models: 2
   - claude-sonnet-5
   - claude-opus-5
-  - kc/openrouter/free
-  - kc/kilo-auto/free
 
 Combos: 2
-  - claude-opus-5 (3 models)
+  - claude-opus-5 (2 models)
   - claude-sonnet-5 (2 models)
 ```
 
@@ -81,17 +94,20 @@ Combos: 2
 Sincroniza a configuração local com o master. Cria providers, connections, combos, custom models e API keys.
 
 ```bash
-python pool.py sync
+python3 pool.py sync
 ```
 
 **O que faz:**
-1. Cria API keys nos slaves
-2. Cria provider nodes no master
-3. Cria provider connections no master
-4. Cria custom models no master
-5. Cria combos no master
-6. Configura round-robin
-7. Exporta a API key do master
+1. Verifica saúde do slave antes de configurar
+2. Cria API keys nos slaves
+3. Cria combos nos slaves (com verificação)
+4. Remove combos existentes no master
+5. Cria provider nodes no master
+6. Cria provider connections no master
+7. Cria custom models no master
+8. Cria combos no master
+9. Configura round-robin
+10. Exporta a API key do master
 
 **Saída importante:**
 ```
@@ -108,13 +124,13 @@ Exemplo OpenCode:
 Testa conectividade com todas as instâncias.
 
 ```bash
-python pool.py test
+python3 pool.py test
 ```
 
 **Saída:**
 ```
 9ROUTER POOL TEST
-──────────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────────
 master → localhost:20128
   [+] login OK
   [+] rs001 → SAUDÁVEL
@@ -138,24 +154,25 @@ rs003 → localhost:20131
 Escala o pool para N slaves (1-15).
 
 ```bash
-python pool.py scale 1      # 1 slave (padrão)
-python pool.py scale 3      # 3 slaves
-python pool.py scale 6      # 6 slaves
-python pool.py scale 10     # 10 slaves
-python pool.py scale 15     # 15 slaves (máximo)
+python3 pool.py scale 1      # 1 slave (padrão)
+python3 pool.py scale 3      # 3 slaves
+python3 pool.py scale 6      # 6 slaves
+python3 pool.py scale 10     # 10 slaves
+python3 pool.py scale 15     # 15 slaves (máximo)
 ```
 
 **O que faz:**
 1. Gera `docker-compose.yaml` com N slaves
 2. Gera `.env` com portas (20129-20128+N)
-3. Cria/remove diretórios `data/9router/slave/NNN`
-4. Atualiza `config.json`
-5. Executa `docker compose up -d`
+3. Atualiza `config.json`
+4. Executa `docker compose up -d --remove-orphans`
+5. Remove volumes órfãos ao reduzir
+6. Executa `sync`
 
 **Opções:**
 ```bash
-python pool.py scale 6 --dry-run    # Simular sem alterar
-python pool.py scale 6 --no-sync    # Não sincronizar após criar
+python3 pool.py scale 6 --dry-run    # Simular sem alterar
+python3 pool.py scale 6 --no-sync    # Não sincronizar após criar
 ```
 
 ### pool.py slave add
@@ -163,7 +180,7 @@ python pool.py scale 6 --no-sync    # Não sincronizar após criar
 Adiciona um slave manualmente.
 
 ```bash
-python pool.py slave add rs004 localhost:20132 --docker-host 9router-slave-004:20132
+python3 pool.py slave add rs004 localhost:20132 --docker-host 9router-slave-004:20132
 ```
 
 ### pool.py slave delete
@@ -171,7 +188,7 @@ python pool.py slave add rs004 localhost:20132 --docker-host 9router-slave-004:2
 Remove um slave.
 
 ```bash
-python pool.py slave delete rs004
+python3 pool.py slave delete rs004
 ```
 
 ### pool.py backup
@@ -179,33 +196,25 @@ python pool.py slave delete rs004
 Faz backup da configuração do master.
 
 ```bash
-python pool.py backup
-python pool.py backup --output backup.json
+python3 pool.py backup
+python3 pool.py backup --output backup.json
 ```
 
 ### pool.py clean
 
-Remove tudo: containers, dados, configs. Reseta para 1 master + 1 slave.
+Remove tudo: containers, dados, configs. **Não recria nada.**
 
 ```bash
-python pool.py clean           # Remove tudo e sobe limpo
-python pool.py clean --dry-run # Simula sem alterar
+python3 pool.py clean           # Remove tudo
+python3 pool.py clean --dry-run # Simula sem alterar
 ```
 
 **O que faz:**
-1. `docker compose down -v --remove-orphans` — para e remove todos os containers
-2. Remove `data/9router/master` e `data/9router/slave/NNN`
-3. Reseta `config.json` para 1 slave
-4. Gera `docker-compose.yaml` e `.env` para 1 slave
-5. Sobe com 1 master + 1 slave limpo
+1. `docker compose down -v --remove-orphans` — para e remove todos os containers e volumes
+2. Reseta `config.json` para 1 slave
+3. Gera `docker-compose.yaml` e `.env` para 1 slave
 
-**Depois rode:** `python pool.py sync` para configurar
-
-**Se der erro de permissão:**
-```bash
-sudo rm -rf scripts/9routerv2/data/9router/master
-sudo rm -rf scripts/9routerv2/data/9router/slave
-```
+**Depois rode:** `python3 pool.py create` para recriar ou `python3 pool.py sync` para configurar
 
 ## Portas
 
@@ -304,7 +313,7 @@ Edite `config.json` → `defaults.publish`:
 
 ## Uso com OpenCode
 
-Após rodar `python pool.py sync`, use a API key exportada:
+Após rodar `python3 pool.py create` ou `python3 pool.py sync`, use a API key exportada:
 
 ```yaml
 # ~/.opencode/config.yaml
@@ -320,17 +329,16 @@ providers:
 |---------|-----------|
 | `pool.py` | Script principal de gerenciamento |
 | `config.json` | Configuração do pool |
-| `docker-compose.yaml` | Definição dos containers |
-| `.env` | Variáveis de ambiente |
+| `docker-compose.yaml` | Definição dos containers (gerado) |
+| `.env` | Variáveis de ambiente (gerado) |
 | `torrc` | Configuração do Tor proxy |
-| `data/` | Dados dos containers |
 
 ## Troubleshooting
 
 ### Provider não conecta ao slave
 
 ```bash
-python pool.py test
+python3 pool.py test
 ```
 
 Verifique se todos os slaves estão SAUDÁVEL.
@@ -338,20 +346,21 @@ Verifique se todos os slaves estão SAUDÁVEL.
 ### Combo não aparece no master
 
 ```bash
-python pool.py sync
+python3 pool.py sync
 ```
 
 Re-sincroniza a configuração.
-
-### Scale não cria diretórios
-
-```bash
-sudo chown -R access:access data/9router/slave/
-```
 
 ### Containers não iniciam
 
 ```bash
 docker compose logs 9router-master
 docker compose logs 9router-slave-001
+```
+
+### Limpar tudo e recomeçar
+
+```bash
+python3 pool.py clean
+python3 pool.py create
 ```

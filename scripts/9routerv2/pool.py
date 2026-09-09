@@ -824,6 +824,23 @@ def configure_slave(
                 )
 
     # ------------------------------------------------------------------------
+    # HEALTH CHECK ANTES DE CRIAR COMBOS
+    # ------------------------------------------------------------------------
+
+    info(f"{slave.name}: verificando saúde...")
+
+    try:
+        r = client.session.get(
+            f"{client.instance.base_url}/api/combos",
+            timeout=client.timeout,
+        )
+        r.raise_for_status()
+        success(f"{slave.name}: saudável")
+    except Exception as exc:
+        error(f"{slave.name}: não saudável: {exc}")
+        return None
+
+    # ------------------------------------------------------------------------
     # CRIAR COMBOS DO DEFAULTS
     # ------------------------------------------------------------------------
 
@@ -848,6 +865,25 @@ def configure_slave(
         except Exception as exc:
             error(
                 f"{slave.name}: erro ao criar combo '{combo_name}': {exc}"
+            )
+
+    # ------------------------------------------------------------------------
+    # VERIFICAR COMBOS CRIADOS
+    # ------------------------------------------------------------------------
+
+    combos_criados = client.get_combos()
+    nomes_esperados = {c["name"] for c in combos}
+    nomes_criados = {c["name"] for c in combos_criados}
+
+    if nomes_esperados == nomes_criados:
+        success(
+            f"{slave.name}: todos os {len(nomes_criados)} combos verificados"
+        )
+    else:
+        faltando = nomes_esperados - nomes_criados
+        if faltando:
+            error(
+                f"{slave.name}: combos faltando: {faltando}"
             )
 
     # ------------------------------------------------------------------------
@@ -2082,22 +2118,91 @@ def clean_pool(
         f.write(env_content)
     success(".env atualizado")
 
-    # 4. Subir com 1 slave limpo
-    info("Subindo com 1 slave limpo...")
+    print()
+    success("Pool limpo! Tudo removido.")
+
+
+def create_pool(
+    config: dict[str, Any],
+    dry_run: bool = False,
+) -> None:
+    """Cria pool básico: 1 master + 1 slave, sobe e sincroniza."""
+
+    title("CREATE — Criar pool básico (1 master + 1 slave)")
+
+    if dry_run:
+        info("[dry-run] nada será criado")
+        return
+
+    # 1. Reset config.json para 1 slave
+    info("Resetando config.json para 1 slave...")
+    config["slaves"] = [
+        {
+            "name": "rs001",
+            "host": "localhost:20129",
+            "docker_host": "9router-slave-001:20129",
+            "password": "123456",
+        }
+    ]
+    save_config(config)
+    success("config.json resetado (1 slave)")
+
+    # 2. Gerar docker-compose.yaml e .env
+    info("Gerando docker-compose.yaml...")
+    compose_content = generate_docker_compose(config, 1)
+    compose_path = BASE_DIR / "docker-compose.yaml"
+    with compose_path.open("w", encoding="utf-8") as f:
+        f.write(compose_content)
+    success("docker-compose.yaml atualizado")
+
+    info("Gerando .env...")
+    env_content = generate_env(1)
+    env_path = BASE_DIR / ".env"
+    with env_path.open("w", encoding="utf-8") as f:
+        f.write(env_content)
+    success(".env atualizado")
+
+    # 3. Docker compose up
+    info("Iniciando containers...")
     result = subprocess.run(
-        ["docker", "compose", "up", "-d"],
+        ["docker", "compose", "up", "-d", "--remove-orphans"],
         cwd=BASE_DIR,
         capture_output=True,
         text=True,
     )
     if result.returncode == 0:
-        success("docker compose up -d concluído")
+        success("containers iniciados")
     else:
-        error(f"docker compose up -d falhou: {result.stderr}")
+        error(f"docker compose up falhou: {result.stderr}")
+        return
+
+    # 4. Aguardar containers ficarem prontos
+    info("Aguardando containers...")
+    for attempt in range(15):
+        time.sleep(2)
+        check = subprocess.run(
+            ["docker", "compose", "ps", "--format", "json"],
+            cwd=BASE_DIR,
+            capture_output=True,
+            text=True,
+        )
+        if check.returncode == 0:
+            running = sum(
+                1 for line in check.stdout.strip().split("\n")
+                if line and json.loads(line).get("State") == "running"
+            )
+            if running >= 3:  # master + slave + tor
+                break
+    else:
+        warning("Containers podem não estar totalmente prontos")
+
+    # 5. Sync
+    info("Sincronizando com master...")
+    sync_pool(config, dry_run=False)
 
     print()
-    success("Pool limpo! 1 master + 1 slave")
-    info("Execute 'python pool.py sync' para configurar")
+    success("Pool criado! 1 master + 1 slave")
+    info("Portas: 20128 (master), 20129 (slave)")
 
 
 # ============================================================================
@@ -2119,6 +2224,17 @@ def main() -> None:
     subparsers.add_parser(
         "list",
         help="Listar configuração do pool",
+    )
+
+    # create
+    create_parser = subparsers.add_parser(
+        "create",
+        help="Criar pool básico: 1 master + 1 slave, sobe e sincroniza",
+    )
+    create_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simular sem alterar nada",
     )
 
     # test
@@ -2231,6 +2347,9 @@ def main() -> None:
 
     if args.command == "list":
         list_pool(config)
+
+    elif args.command == "create":
+        create_pool(config, dry_run=args.dry_run)
 
     elif args.command == "test":
         test_pool(config)
