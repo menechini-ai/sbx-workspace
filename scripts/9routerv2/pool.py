@@ -851,7 +851,7 @@ def configure_slave(
             )
 
     # ------------------------------------------------------------------------
-    # REMOVER CUSTOM MODELS EXISTENTES
+    # REMOVER CUSTOM MODELS EXISTENTES (não criar novos no slave)
     # ------------------------------------------------------------------------
 
     existing_custom = client.get_custom_models()
@@ -860,16 +860,13 @@ def configure_slave(
         pa = cm.get("providerAlias", "")
         mid = cm.get("id", "")
 
-        # Only remove models that match our defaults
-        is_default_model = any(
-            mid == m or f"{pa}/{mid}" == m
-            for m in models
-        ) or any(
+        # Só remover modelos que NÃO estão em nenhum combo
+        in_any_combo = any(
             mid in combo.get("models", [])
             for combo in combos
         )
 
-        if is_default_model and pa in ("oc", "kc"):
+        if not in_any_combo and pa in ("oc", "kc"):
             try:
                 client.delete_custom_model(pa, mid)
                 info(
@@ -877,32 +874,6 @@ def configure_slave(
                 )
             except Exception:
                 pass
-
-    # ------------------------------------------------------------------------
-    # CRIAR CUSTOM MODELS DO DEFAULTS
-    # ------------------------------------------------------------------------
-
-    for model in models:
-        parts = model.split("/", 1)
-        if len(parts) == 2:
-            alias, model_id = parts
-        else:
-            alias = "oc"
-            model_id = model
-
-        try:
-            client.add_custom_model(
-                provider_alias=alias,
-                model_id=model_id,
-                model_name=model_id,
-            )
-            info(
-                f"{slave.name}: custom model '{alias}/{model_id}' adicionado"
-            )
-        except Exception as exc:
-            warning(
-                f"{slave.name}: erro ao adicionar custom model '{alias}/{model_id}': {exc}"
-            )
 
     success(
         f"{slave.name}: configuração aplicada"
@@ -1294,6 +1265,7 @@ def sync_pool(
 
     defaults = config["defaults"]
     slaves = slave_instances(config)
+    master = master_instance(config)
 
     title("9ROUTER POOL SYNC")
 
@@ -1425,7 +1397,7 @@ def sync_pool(
             print()
             info("Exemplo OpenCode:")
             info(f'  apiKey: "{default_key}"')
-            info(f'  baseUrl: "http://localhost:{master.port}/v1"')
+            info(f'  baseUrl: "http://{master.host}/v1"')
 
     success(
         "\nSync concluído!"
