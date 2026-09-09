@@ -1410,6 +1410,23 @@ def sync_pool(
         dry_run=False,
     )
 
+    # ------------------------------------------------------------------------
+    # EXPORTAR API KEY DO MASTER
+    # ------------------------------------------------------------------------
+
+    master_client = RouterClient(master)
+    if master_client.login():
+        keys = master_client.get_api_keys()
+        if keys:
+            default_key = keys[0].get("key", "")
+            print()
+            success("API Key do Master (use nos clientes):")
+            info(f"  {default_key}")
+            print()
+            info("Exemplo OpenCode:")
+            info(f'  apiKey: "{default_key}"')
+            info(f'  baseUrl: "http://localhost:{master.port}/v1"')
+
     success(
         "\nSync concluído!"
     )
