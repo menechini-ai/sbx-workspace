@@ -937,7 +937,7 @@ def sync_master(
     success("Master: login OK")
 
     # ------------------------------------------------------------------------
-    # REMOVER PROVIDER NODES EXISTENTES
+    # REMOVER TODOS OS PROVIDER NODES EXISTENTES
     # ------------------------------------------------------------------------
 
     existing_nodes = master_client.get_provider_nodes()
@@ -946,29 +946,17 @@ def sync_master(
         node_id = node.get("id")
         node_name = node.get("name")
 
-        is_slave_node = any(
-            s.name == node_name or s.name in (node_id or "")
-            for s in slaves
-        )
-
-        if is_slave_node:
-            if dry_run:
-                info(
-                    f"[dry-run] removeria provider node '{node_name}'"
-                )
-            else:
-                try:
-                    master_client.delete_provider_node(node_id)
-                    info(
-                        f"master: provider node '{node_name}' removido"
-                    )
-                except Exception as exc:
-                    warning(
-                        f"master: erro ao remover provider node '{node_name}': {exc}"
-                    )
+        if dry_run:
+            info(f"[dry-run] removeria provider node '{node_name}'")
+        else:
+            try:
+                master_client.delete_provider_node(node_id)
+                info(f"master: provider node '{node_name}' removido")
+            except Exception as exc:
+                warning(f"master: erro ao remover provider node '{node_name}': {exc}")
 
     # ------------------------------------------------------------------------
-    # REMOVER PROVIDER CONNECTIONS EXISTENTES
+    # REMOVER TODAS AS PROVIDER CONNECTIONS EXISTENTES
     # ------------------------------------------------------------------------
 
     existing_providers = master_client.get_providers()
@@ -976,31 +964,18 @@ def sync_master(
     for provider in existing_providers:
         provider_id = provider.get("id")
         provider_name = provider.get("name")
-        provider_type = provider.get("provider", "")
 
-        is_slave_provider = any(
-            s.name == provider_name or s.name in (provider_type or "")
-            for s in slaves
-        )
-
-        if is_slave_provider:
-            if dry_run:
-                info(
-                    f"[dry-run] removeria provider connection '{provider_name}'"
-                )
-            else:
-                try:
-                    master_client.delete_provider(provider_id)
-                    info(
-                        f"master: provider connection '{provider_name}' removido"
-                    )
-                except Exception as exc:
-                    warning(
-                        f"master: erro ao remover provider connection '{provider_name}': {exc}"
-                    )
+        if dry_run:
+            info(f"[dry-run] removeria provider connection '{provider_name}'")
+        else:
+            try:
+                master_client.delete_provider(provider_id)
+                info(f"master: provider connection '{provider_name}' removido")
+            except Exception as exc:
+                warning(f"master: erro ao remover provider connection '{provider_name}': {exc}")
 
     # ------------------------------------------------------------------------
-    # REMOVER CUSTOM MODELS DOS SLAVES
+    # REMOVER TODOS OS CUSTOM MODELS
     # ------------------------------------------------------------------------
 
     existing_custom = master_client.get_custom_models()
@@ -1009,26 +984,14 @@ def sync_master(
         pa = cm.get("providerAlias", "")
         mid = cm.get("id", "")
 
-        is_slave_model = any(
-            s.name in pa or s.name in mid
-            for s in slaves
-        )
-
-        if is_slave_model:
-            if dry_run:
-                info(
-                    f"[dry-run] removeria custom model '{pa}/{mid}'"
-                )
-            else:
-                try:
-                    master_client.delete_custom_model(pa, mid)
-                    info(
-                        f"master: custom model '{pa}/{mid}' removido"
-                    )
-                except Exception as exc:
-                    warning(
-                        f"master: erro ao remover custom model '{pa}/{mid}': {exc}"
-                    )
+        if dry_run:
+            info(f"[dry-run] removeria custom model '{pa}/{mid}'")
+        else:
+            try:
+                master_client.delete_custom_model(pa, mid)
+                info(f"master: custom model '{pa}/{mid}' removido")
+            except Exception as exc:
+                warning(f"master: erro ao remover custom model '{pa}/{mid}': {exc}")
 
     # ------------------------------------------------------------------------
     # REMOVER COMBOS DOS SLAVES
@@ -1777,11 +1740,41 @@ def update_config_for_scale(config: dict[str, Any], num_slaves: int) -> dict[str
 def create_data_directories(num_slaves: int) -> None:
     """Create data directories for each slave."""
     base_dir = BASE_DIR / "data" / "9router" / "slave"
+
     for i in range(1, num_slaves + 1):
         slave_num = f"{i:03d}"
         slave_dir = base_dir / slave_num
-        slave_dir.mkdir(parents=True, exist_ok=True)
-        info(f"Diretório: {slave_dir}")
+
+        try:
+            slave_dir.mkdir(parents=True, exist_ok=True)
+            info(f"Diretório: {slave_dir}")
+        except PermissionError:
+            warning(f"Sem permissão para criar: {slave_dir}")
+            info(f"Execute: sudo chown -R access:access {base_dir}")
+        except Exception as exc:
+            warning(f"Erro ao criar {slave_dir}: {exc}")
+
+
+def remove_data_directories(from_slave: int, to_slave: int) -> None:
+    """Remove data directories for slaves from_slave..to_slave."""
+    import shutil
+    base_dir = BASE_DIR / "data" / "9router" / "slave"
+
+    for i in range(from_slave, to_slave + 1):
+        slave_num = f"{i:03d}"
+        slave_dir = base_dir / slave_num
+
+        if not slave_dir.exists():
+            continue
+
+        try:
+            shutil.rmtree(slave_dir)
+            info(f"Diretório removido: {slave_dir}")
+        except PermissionError:
+            warning(f"Sem permissão para remover: {slave_dir}")
+            info(f"Execute: sudo rm -rf {slave_dir}")
+        except Exception as exc:
+            warning(f"Erro ao remover {slave_dir}: {exc}")
 
 
 def scale_pool(
@@ -1836,8 +1829,12 @@ def scale_pool(
             f.write(env_content)
         success(f".env atualizado ({num_slaves} slaves)")
 
-    # 3. Create data directories (only for new slaves)
-    if not is_scale_down:
+    # 3. Create or remove data directories
+    if is_scale_down:
+        info("Removendo diretórios de dados...")
+        if not dry_run:
+            remove_data_directories(num_slaves + 1, current_count)
+    else:
         info("Criando diretórios de dados...")
         if not dry_run:
             create_data_directories(num_slaves)
@@ -1896,8 +1893,7 @@ def scale_pool(
 
     print()
     if is_scale_down:
-        warning(f"Pool reduzido para {num_slaves} slaves")
-        warning("Diretórios de dados antigos NÃO foram removidos (segurança)")
+        success(f"Pool reduzido para {num_slaves} slaves")
     else:
         success(f"Pool escalado para {num_slaves} slaves!")
     info(f"Portas: 20128 (master), 20129-{20128 + num_slaves} (slaves)")
