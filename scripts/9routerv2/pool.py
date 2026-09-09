@@ -1386,18 +1386,34 @@ def sync_pool(
     # EXPORTAR API KEY DO MASTER
     # ------------------------------------------------------------------------
 
-    master_client = RouterClient(master)
-    if master_client.login():
-        keys = master_client.get_api_keys()
-        if keys:
-            default_key = keys[0].get("key", "")
-            print()
-            success("API Key do Master (use nos clientes):")
-            info(f"  {default_key}")
-            print()
-            info("Exemplo OpenCode:")
-            info(f'  apiKey: "{default_key}"')
-            info(f'  baseUrl: "http://{master.host}/v1"')
+    try:
+        master_client = RouterClient(master)
+        if master_client.login():
+            keys = master_client.get_api_keys()
+            
+            # Se não tem API key, criar uma
+            if not keys:
+                info("Criando API key no master...")
+                key_data = master_client.create_api_key(name="pool-key")
+                if key_data:
+                    keys = [key_data]
+                    success("API key criada no master")
+            
+            if keys:
+                default_key = keys[0].get("key", "")
+                print()
+                success("API Key do Master (use nos clientes):")
+                info(f"  {default_key}")
+                print()
+                info("Exemplo OpenCode:")
+                info(f'  apiKey: "{default_key}"')
+                info(f'  baseUrl: "http://{master.host}/v1"')
+            else:
+                warning("Não foi possível criar API key no master")
+        else:
+            warning("Login no master falhou para exportar API key")
+    except Exception as exc:
+        warning(f"Erro ao exportar API key: {exc}")
 
     success(
         "\nSync concluído!"
@@ -1561,14 +1577,16 @@ def test_pool(config: dict[str, Any]) -> None:
 # ============================================================================
 
 def generate_docker_compose(config: dict[str, Any], num_slaves: int) -> str:
-    """Generate docker-compose.yaml with N slaves."""
+    """Generate docker-compose.yaml with N slaves using named volumes."""
     master_port = 20128
     base_port = 20129
 
     slave_services = []
+    volumes_def = []
     for i in range(1, num_slaves + 1):
         slave_num = f"{i:03d}"
         port = base_port + i - 1
+        vol_name = f"9router-slave-{slave_num}-data"
         slave_services.append(f"""
   9router-slave-{slave_num}:
     <<: *service-slave
@@ -1578,7 +1596,7 @@ def generate_docker_compose(config: dict[str, Any], num_slaves: int) -> str:
     ports:
       - "${{ROUTER_PORT_SLAVE_{slave_num}:-{port}}}:{port}"
     volumes:
-      - ./data/9router/slave/{slave_num}:/app/data
+      - {vol_name}:/app/data
     environment:
       DATA_DIR: /app/data
       PORT: "${{ROUTER_PORT_SLAVE_{slave_num}:-{port}}}"
@@ -1592,6 +1610,7 @@ def generate_docker_compose(config: dict[str, Any], num_slaves: int) -> str:
       NO_PROXY: "localhost,127.0.0.1,internal"
     networks:
       - clawbox-net""")
+        volumes_def.append(f"  {vol_name}:")
 
     compose = f"""x-common: &common
   restart: unless-stopped
@@ -1636,7 +1655,7 @@ services:
       - "8118:8118"
     volumes:
       - ./torrc:/etc/tor/torrc:ro
-      - ./data/tor/data:/var/lib/tor
+      - 9router-tor-data:/var/lib/tor
     environment:
       PASSWORD: "${{TOR_PASSWORD:-password}}"
       CHECK: "${{TOR_CHECK:-false}}"
@@ -1652,7 +1671,7 @@ services:
     ports:
       - "${{ROUTER_PORT_MASTER:-{master_port}}}:{master_port}"
     volumes:
-      - ./data/9router/master:/app/data
+      - 9router-master-data:/app/data
     environment:
       DATA_DIR: /app/data
       PORT: "${{ROUTER_PORT_MASTER:-{master_port}}}"
@@ -1663,6 +1682,11 @@ services:
     networks:
       - clawbox-net
 {"".join(slave_services)}
+
+volumes:
+  9router-tor-data:
+  9router-master-data:
+{chr(10).join(volumes_def)}
 
 networks:
   clawbox-net:
@@ -1818,17 +1842,7 @@ def scale_pool(
             f.write(env_content)
         success(f".env atualizado ({num_slaves} slaves)")
 
-    # 3. Create or remove data directories
-    if is_scale_down:
-        info("Removendo diretórios de dados...")
-        if not dry_run:
-            remove_data_directories(num_slaves + 1, current_count)
-    else:
-        info("Criando diretórios de dados...")
-        if not dry_run:
-            create_data_directories(num_slaves)
-
-    # 4. Update config.json
+    # 3. Update config.json
     info("Atualizando config.json...")
     config = update_config_for_scale(config, num_slaves)
     if dry_run:
@@ -1856,7 +1870,22 @@ def scale_pool(
                 error(result.stderr.strip())
             return
 
-    # 6. Sync to master (skip on scale-down — slaves removed, not added)
+    # 6. Remover volumes órfãos (escala para baixo)
+    if is_scale_down and not dry_run:
+        info("Removendo volumes órfãos...")
+        for i in range(num_slaves + 1, current_count + 1):
+            vol_name = f"9routerv2_9router-slave-{i:03d}-data"
+            result = subprocess.run(
+                ["docker", "volume", "rm", vol_name],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                info(f"volume '{vol_name}' removido")
+            else:
+                warning(f"volume '{vol_name}' não encontrado ou em uso")
+
+    # 7. Sync to master (skip on scale-down — slaves removed, not added)
     if not no_sync and not dry_run and not is_scale_down:
         info("Aguardando containers iniciarem...")
         expected = num_slaves + 2  # slaves + master + tor
@@ -2012,8 +2041,8 @@ def clean_pool(
         info("[dry-run] nada será removido")
         return
 
-    # 1. Docker compose down
-    info("Parando containers...")
+    # 1. Docker compose down (com -v remove volumes)
+    info("Parando containers e removendo volumes...")
     result = subprocess.run(
         ["docker", "compose", "down", "-v", "--remove-orphans"],
         cwd=BASE_DIR,
@@ -2021,37 +2050,11 @@ def clean_pool(
         text=True,
     )
     if result.returncode == 0:
-        success("containers removidos")
+        success("containers e volumes removidos")
     else:
         error(f"docker compose down falhou: {result.stderr}")
 
-    # 2. Remover data directories
-    info("Removendo diretórios de dados...")
-    import shutil
-
-    # Remover data/9router/master
-    master_data = BASE_DIR / "data" / "9router" / "master"
-    if master_data.exists():
-        try:
-            shutil.rmtree(master_data)
-            info(f"removido: {master_data}")
-        except PermissionError:
-            warning(f"sem permissão: {master_data}")
-            info(f"  execute: sudo rm -rf {master_data}")
-
-    # Remover data/9router/slave/NNN (cada slave individualmente)
-    slave_data_base = BASE_DIR / "data" / "9router" / "slave"
-    if slave_data_base.exists():
-        for item in slave_data_base.iterdir():
-            if item.is_dir():
-                try:
-                    shutil.rmtree(item)
-                    info(f"removido: {item}")
-                except PermissionError:
-                    warning(f"sem permissão: {item}")
-                    info(f"  execute: sudo rm -rf {item}")
-
-    # 3. Reset config.json para 1 slave
+    # 2. Reset config.json para 1 slave
     info("Resetando config.json para 1 slave...")
     config["slaves"] = [
         {
@@ -2064,7 +2067,7 @@ def clean_pool(
     save_config(config)
     success("config.json resetado (1 slave)")
 
-    # 4. Gerar docker-compose.yaml e .env para 1 slave
+    # 3. Gerar docker-compose.yaml e .env para 1 slave
     info("Gerando docker-compose.yaml para 1 slave...")
     compose_content = generate_docker_compose(config, 1)
     compose_path = BASE_DIR / "docker-compose.yaml"
@@ -2079,7 +2082,7 @@ def clean_pool(
         f.write(env_content)
     success(".env atualizado")
 
-    # 5. Subir com 1 slave limpo
+    # 4. Subir com 1 slave limpo
     info("Subindo com 1 slave limpo...")
     result = subprocess.run(
         ["docker", "compose", "up", "-d"],
