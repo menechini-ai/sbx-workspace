@@ -65,6 +65,12 @@ def main() -> None:
         help="Simular sem alterar nada",
     )
 
+    sync_parser.add_argument(
+        "--skip-health-check",
+        action="store_true",
+        help="Pular verificação de saúde dos providers (mais rápido)",
+    )
+
     # slave add
     slave_add_parser = subparsers.add_parser(
         "slave add",
@@ -165,7 +171,11 @@ def main() -> None:
         test_pool(config)
 
     elif args.command == "sync":
-        sync_pool(config, dry_run=args.dry_run)
+        sync_pool(
+            config,
+            dry_run=args.dry_run,
+            skip_health_check=args.skip_health_check,
+        )
 
     elif args.command == "slave add":
         slave_add(config, args.name, args.host, docker_host=args.docker_host)

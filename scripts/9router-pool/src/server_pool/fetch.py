@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import Any
 
 import requests as req
@@ -11,33 +12,65 @@ from .config import save_config
 from .console import error, info, success, title, warning
 
 
-def fetch_opencode_free_models() -> dict[str, list[str]]:
+def fetch_opencode_free_models(master_host: str = "localhost:20128") -> dict[str, list[str]]:
     """Busca modelos free do opencode via suggested-models e testa thinking."""
 
     title("FETCH — Buscar modelos opencode free")
 
-    # 1. Login no master e obter API key
+    base_url = f"http://{master_host}"
+
+    # 1. Login no master e obter API key (com retry)
     info("Fazendo login no master...")
     s = req.Session()
-    try:
-        r = s.post(
-            "http://localhost:20128/api/auth/login",
-            json={"password": "123456"},
-            timeout=10,
-        )
-        # Obter API key via /api/keys
-        r2 = s.get("http://localhost:20128/api/keys", timeout=10)
-        if r2.status_code == 200:
-            keys = r2.json().get("keys", [])
-            api_key = keys[0].get("key", "") if keys else ""
-        else:
-            api_key = ""
-    except Exception as exc:
-        error(f"Erro ao fazer login: {exc}")
-        return {"thinking": [], "no_thinking": []}
+    api_key = ""
+
+    for attempt in range(5):
+        try:
+            r = s.post(
+                f"{base_url}/api/auth/login",
+                json={"password": "123456"},
+                timeout=10,
+            )
+            if r.status_code != 200:
+                info(f"Login falhou (attempt {attempt + 1}/5), retrying...")
+                time.sleep(5)
+                continue
+
+            # Obter API key via /api/keys
+            r2 = s.get(f"{base_url}/api/keys", timeout=10)
+            if r2.status_code == 200:
+                keys = r2.json().get("keys", [])
+                # Se não tem API key, criar uma
+                if not keys:
+                    info("Criando API key no master...")
+                    r3 = s.post(
+                        f"{base_url}/api/keys",
+                        json={"name": "pool-key"},
+                        timeout=10,
+                    )
+                    if r3.status_code == 200:
+                        key_data = r3.json()
+                        api_key = key_data.get("key", "")
+                        success("API key criada no master")
+                    else:
+                        info(f"Criar API key falhou (attempt {attempt + 1}/5), retrying...")
+                        time.sleep(5)
+                        continue
+                else:
+                    api_key = keys[0].get("key", "")
+                    break
+            else:
+                info(f"Obter API keys falhou (attempt {attempt + 1}/5), retrying...")
+                time.sleep(5)
+                continue
+
+        except Exception as exc:
+            info(f"Erro de conexão (attempt {attempt + 1}/5): {exc}")
+            time.sleep(5)
+            continue
 
     if not api_key:
-        error("Não obteve API key")
+        error("Não obteve API key após 5 tentativas")
         return {"thinking": [], "no_thinking": []}
 
     info(f"API key: {api_key[:20]}...")
@@ -46,7 +79,7 @@ def fetch_opencode_free_models() -> dict[str, list[str]]:
     info("Buscando modelos opencode free...")
     try:
         r = s.get(
-            "http://localhost:20128/api/providers/suggested-models",
+            f"{base_url}/api/providers/suggested-models",
             params={
                 "url": "https://opencode.ai/zen/v1/models",
                 "type": "opencode-free",
@@ -83,7 +116,7 @@ def fetch_opencode_free_models() -> dict[str, list[str]]:
                 "max_output_tokens": 2000,
             }
             r = req.post(
-                "http://localhost:20128/v1/responses",
+                f"{base_url}/v1/responses",
                 json=payload,
                 headers=headers,
                 timeout=60,

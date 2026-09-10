@@ -556,7 +556,7 @@ def create_pool(
     wait_for_instance(master, max_attempts=10, delay=3)
 
     # 6. Buscar modelos opencode free e atualizar config
-    models = fetch_opencode_free_models()
+    models = fetch_opencode_free_models(master_host=master.host)
     update_config_with_models(config, models)
 
     # 7. Sync

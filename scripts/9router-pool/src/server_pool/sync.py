@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 from .console import C, error, info, success, title, warning
@@ -222,6 +223,7 @@ def sync_master(
     config: dict[str, Any],
     slave_api_keys: dict[str, str],
     dry_run: bool = False,
+    skip_health_check: bool = False,
 ) -> None:
 
     master = master_instance(config)
@@ -406,59 +408,63 @@ def sync_master(
             )
 
     # ------------------------------------------------------------------------
-    # VERIFICAR HEALTH DOS PROVIDERS
+    # VERIFICAR HEALTH DOS PROVIDERS (paralelo)
     # ------------------------------------------------------------------------
 
-    info("Aguardando providers inicializarem...")
-    time.sleep(30)
+    if skip_health_check:
+        info("Health check ignorado (--skip-health-check)")
+    else:
+        info("Aguardando providers inicializarem (60s para Tor estabelecer circuitos)...")
+        time.sleep(60)
 
-    title("HEALTH CHECK")
+        title("HEALTH CHECK (paralelo)")
 
-    providers = master_client.get_providers()
+        providers = master_client.get_providers()
+        base_url = master_client.instance.base_url
 
-    for provider in providers:
-        provider_id = provider.get("id")
-        provider_name = provider.get("name")
-
-        if not provider_id:
-            continue
-
-        for attempt in range(3):
+        def _test_provider(provider: dict) -> tuple[str, bool, str]:
+            """Testa um provider em thread separada. Retorna (name, valid, error)."""
+            import requests as _req
+            provider_id = provider.get("id", "")
+            provider_name = provider.get("name", provider_id)
+            session = _req.Session()
+            # Re-login nesta thread com nova session
             try:
-                time.sleep(5)
-                # Usar timeout maior para health check (90s)
-                response = master_client.session.post(
-                    f"{master_client.instance.base_url}/api/providers/{provider_id}/test",
+                session.post(
+                    f"{base_url}/api/auth/login",
+                    json={"password": master_client.instance.password},
+                    timeout=10,
+                )
+            except Exception:
+                pass
+            try:
+                response = session.post(
+                    f"{base_url}/api/providers/{provider_id}/test",
                     json={},
-                    timeout=90,
+                    timeout=120,
                 )
                 response.raise_for_status()
-                result = response.json()
-                valid = result.get("valid", False)
-                err = result.get("error")
-
-                if valid:
-                    success(
-                        f"master: provider '{provider_name}' → SAUDÁVEL"
-                    )
-                else:
-                    warning(
-                        f"master: provider '{provider_name}' → FALHOU: {err}"
-                    )
-                break
-
+                data = response.json()
+                valid = data.get("valid", False)
+                err = data.get("error", "")
+                return provider_name, valid, err
             except Exception as exc:
-                if attempt < 2:
-                    warning(f"master: retry {attempt + 1}/3 health check para '{provider_name}'")
-                    time.sleep(5)
-                    try:
-                        master_client.login()
-                    except Exception:
-                        pass
+                return provider_name, False, str(exc)
+
+        with ThreadPoolExecutor(max_workers=len(providers) or 1) as executor:
+            future_to_provider = {
+                executor.submit(_test_provider, p): p
+                for p in providers
+                if p.get("id")
+            }
+            for future in as_completed(future_to_provider):
+                name, valid, err = future.result()
+                if valid:
+                    success(f"master: provider '{name}' → SAUDÁVEL")
+                elif err:
+                    warning(f"master: provider '{name}' → FALHOU: {err}")
                 else:
-                    error(
-                        f"master: provider '{provider_name}' → ERRO: {exc}"
-                    )
+                    warning(f"master: provider '{name}' → FALHOU (sem detalhes)")
 
     # ------------------------------------------------------------------------
     # 3. CRIAR CUSTOM MODELS PARA CADA NODE
@@ -641,6 +647,7 @@ def sync_master(
 def sync_pool(
     config: dict[str, Any],
     dry_run: bool = False,
+    skip_health_check: bool = False,
 ) -> None:
 
     defaults = config["defaults"]
@@ -760,6 +767,7 @@ def sync_pool(
         config,
         slave_api_keys,
         dry_run=False,
+        skip_health_check=skip_health_check,
     )
 
     # ------------------------------------------------------------------------

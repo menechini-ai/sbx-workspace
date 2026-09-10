@@ -6,35 +6,27 @@
   },
   "defaults": {
     "models": [
+      "oc/big-pickle",
       "oc/muse-spark-1.3-contributor-free",
       "oc/muse-spark-1.2-contributor-free",
-      "oc/big-pickle",
       "oc/mimo-v2.5-free",
       "oc/ling-3.0-flash-fin-free",
-      "oc/nemotron-3-ultra-free",
       "oc/nemotron-3.5-lightning-free"
     ],
     "combos": [
       {
-        "name": "claude-opus-5",
-        "models": [
-          "oc/muse-spark-1.3-contributor-free",
-          "oc/muse-spark-1.2-contributor-free"
-        ]
-      },
-      {
         "name": "claude-sonnet-5",
         "models": [
           "oc/big-pickle",
+          "oc/muse-spark-1.3-contributor-free",
+          "oc/muse-spark-1.2-contributor-free",
           "oc/mimo-v2.5-free",
           "oc/ling-3.0-flash-fin-free",
-          "oc/nemotron-3-ultra-free",
           "oc/nemotron-3.5-lightning-free"
         ]
       }
     ],
     "publish": [
-      "claude-opus-5",
       "claude-sonnet-5"
     ]
   },
