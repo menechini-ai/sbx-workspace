@@ -17,8 +17,8 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     networks:
-      - clawbox-net
+      - sbx-net
 
 networks:
-  clawbox-net:
+  sbx-net:
     external: true

@@ -715,6 +715,36 @@ class RouterClient:
 
 
 # ============================================================================
+# HEALTH CHECK HELPER
+# ============================================================================
+
+def wait_for_instance(
+    instance: Instance,
+    max_attempts: int = 20,
+    delay: int = 3,
+) -> bool:
+    """Wait for an instance HTTP API to be ready."""
+    info(f"Aguardando {instance.name} ({instance.base_url})...")
+    client = RouterClient(instance)
+    for attempt in range(max_attempts):
+        try:
+            response = client.session.post(
+                f"{instance.base_url}/api/auth/login",
+                json={"password": instance.password},
+                timeout=5,
+            )
+            if response.status_code == 200:
+                success(f"{instance.name}: API pronta")
+                return True
+        except requests.RequestException:
+            pass
+        info(f"{instance.name}: ainda inicializando... ({attempt + 1}/{max_attempts})")
+        time.sleep(delay)
+    warning(f"{instance.name}: pode não estar totalmente pronto")
+    return False
+
+
+# ============================================================================
 # SLAVE CONFIGURATION
 # ============================================================================
 
@@ -756,6 +786,9 @@ def configure_slave(
         return None
 
     client = RouterClient(slave)
+
+    # Health check antes do login
+    wait_for_instance(slave, max_attempts=15, delay=3)
 
     if not client.login():
         error(
@@ -935,6 +968,9 @@ def sync_master(
 
     title(f"MASTER {master.host}")
 
+    # Health check antes de começar
+    wait_for_instance(master, max_attempts=20, delay=3)
+
     master_client = RouterClient(master)
 
     if not master_client.login():
@@ -1110,6 +1146,9 @@ def sync_master(
     # VERIFICAR HEALTH DOS PROVIDERS
     # ------------------------------------------------------------------------
 
+    info("Aguardando providers inicializarem...")
+    time.sleep(30)
+
     title("HEALTH CHECK")
 
     providers = master_client.get_providers()
@@ -1121,24 +1160,42 @@ def sync_master(
         if not provider_id:
             continue
 
-        try:
-            result = master_client.test_provider(provider_id)
-            valid = result.get("valid", False)
-            err = result.get("error")
-
-            if valid:
-                success(
-                    f"master: provider '{provider_name}' → SAUDÁVEL"
+        for attempt in range(3):
+            try:
+                time.sleep(5)
+                # Usar timeout maior para health check (90s)
+                response = master_client.session.post(
+                    f"{master_client.instance.base_url}/api/providers/{provider_id}/test",
+                    json={},
+                    timeout=90,
                 )
-            else:
-                warning(
-                    f"master: provider '{provider_name}' → FALHOU: {err}"
-                )
+                response.raise_for_status()
+                result = response.json()
+                valid = result.get("valid", False)
+                err = result.get("error")
 
-        except Exception as exc:
-            error(
-                f"master: provider '{provider_name}' → ERRO: {exc}"
-            )
+                if valid:
+                    success(
+                        f"master: provider '{provider_name}' → SAUDÁVEL"
+                    )
+                else:
+                    warning(
+                        f"master: provider '{provider_name}' → FALHOU: {err}"
+                    )
+                break
+
+            except Exception as exc:
+                if attempt < 2:
+                    warning(f"master: retry {attempt + 1}/3 health check para '{provider_name}'")
+                    time.sleep(5)
+                    try:
+                        master_client.login()
+                    except Exception:
+                        pass
+                else:
+                    error(
+                        f"master: provider '{provider_name}' → ERRO: {exc}"
+                    )
 
     # ------------------------------------------------------------------------
     # 3. CRIAR CUSTOM MODELS PARA CADA NODE
@@ -1150,7 +1207,7 @@ def sync_master(
 
         node_id = node_ids[slave.name]
 
-        # Modelos dos defaults
+        # Modelos dos defaults (com retry)
         for model in defaults.get("models", []):
             parts = model.split("/", 1)
             if len(parts) == 2:
@@ -1159,21 +1216,32 @@ def sync_master(
                 alias = "oc"
                 model_id = model
 
-            try:
-                master_client.add_custom_model(
-                    provider_alias=node_id,
-                    model_id=model_id,
-                    model_name=model_id,
-                )
-                info(
-                    f"master: custom model '{node_id}/{model_id}' adicionado"
-                )
-            except Exception as exc:
-                warning(
-                    f"master: erro ao adicionar custom model '{node_id}/{model_id}': {exc}"
-                )
+            for attempt in range(3):
+                try:
+                    master_client.add_custom_model(
+                        provider_alias=node_id,
+                        model_id=model_id,
+                        model_name=model_id,
+                    )
+                    info(
+                        f"master: custom model '{node_id}/{model_id}' adicionado"
+                    )
+                    break
+                except Exception as exc:
+                    if attempt < 2:
+                        warning(f"master: retry {attempt + 1}/3 para custom model '{node_id}/{model_id}'")
+                        time.sleep(5)
+                        # Re-login after connection error
+                        try:
+                            master_client.login()
+                        except Exception:
+                            pass
+                    else:
+                        warning(
+                            f"master: erro ao adicionar custom model '{node_id}/{model_id}': {exc}"
+                        )
 
-        # Modelos dos combos
+        # Modelos dos combos (com retry)
         for combo_config in defaults.get("combos", []):
             for model in combo_config.get("models", []):
                 parts = model.split("/", 1)
@@ -1183,14 +1251,21 @@ def sync_master(
                     alias = "oc"
                     model_id = model
 
-                try:
-                    master_client.add_custom_model(
-                        provider_alias=node_id,
-                        model_id=model_id,
-                        model_name=model_id,
-                    )
-                except Exception:
-                    pass
+                for attempt in range(3):
+                    try:
+                        master_client.add_custom_model(
+                            provider_alias=node_id,
+                            model_id=model_id,
+                            model_name=model_id,
+                        )
+                        break
+                    except Exception:
+                        if attempt < 2:
+                            time.sleep(5)
+                            try:
+                                master_client.login()
+                            except Exception:
+                                pass
 
     # ------------------------------------------------------------------------
     # 4. CRIAR COMBOS NO MASTER
@@ -1240,21 +1315,31 @@ def sync_master(
             )
             continue
 
-        try:
-            master_client.create_combo(
-                name=combo_name,
-                models=final_models,
-            )
+        for attempt in range(3):
+            try:
+                master_client.create_combo(
+                    name=combo_name,
+                    models=final_models,
+                )
 
-            success(
-                f"master: combo '{combo_name}' criado "
-                f"({len(final_models)} modelos)"
-            )
+                success(
+                    f"master: combo '{combo_name}' criado "
+                    f"({len(final_models)} modelos)"
+                )
+                break
 
-        except Exception as exc:
-            error(
-                f"master: erro ao criar combo '{combo_name}': {exc}"
-            )
+            except Exception as exc:
+                if attempt < 2:
+                    warning(f"master: retry {attempt + 1}/3 para combo '{combo_name}'")
+                    time.sleep(5)
+                    try:
+                        master_client.login()
+                    except Exception:
+                        pass
+                else:
+                    error(
+                        f"master: erro ao criar combo '{combo_name}': {exc}"
+                    )
 
     # ------------------------------------------------------------------------
     # 5. CONFIGURAR ROUND-ROBIN NO MASTER
@@ -1555,12 +1640,21 @@ def test_pool(config: dict[str, Any]) -> None:
                 # Health check for master providers
                 if instance.name == master.name and providers:
                     print()
+                    info("Aguardando providers inicializarem...")
+                    time.sleep(10)
                     for provider in providers:
                         pid = provider.get("id")
                         pname = provider.get("name")
                         if pid:
                             try:
-                                result = client.test_provider(pid)
+                                # Usar timeout maior (90s) para health check
+                                response = client.session.post(
+                                    f"{client.instance.base_url}/api/providers/{pid}/test",
+                                    json={},
+                                    timeout=90,
+                                )
+                                response.raise_for_status()
+                                result = response.json()
                                 valid = result.get("valid", False)
                                 err = result.get("error")
                                 if valid:
@@ -1627,25 +1721,32 @@ def generate_docker_compose(config: dict[str, Any], num_slaves: int) -> str:
   9router-slave-{slave_num}:
     <<: *service-slave
     image: decolua/9router:${{NINEROUTER_TAG:-latest}}
-    container_name: clawbox-9router-slave-{slave_num}
+    container_name: sbx-9router-slave-{slave_num}
     pull_policy: missing
     ports:
       - "${{ROUTER_PORT_SLAVE_{slave_num}:-{port}}}:{port}"
     volumes:
       - {vol_name}:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:{port}/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     environment:
       DATA_DIR: /app/data
       PORT: "${{ROUTER_PORT_SLAVE_{slave_num}:-{port}}}"
       HOSTNAME: 0.0.0.0
       ROLE: slave
       JWT_SECRET: "${{JWT_SECRET:-P4s5w0rd}}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
       INITIAL_PASSWORD: "${{INITIAL_PASSWORD:-123456}}"
       HTTP_PROXY: "http://tor:8118"
       HTTPS_PROXY: "http://tor:8118"
       ALL_PROXY: "socks5://tor:9050"
-      NO_PROXY: "localhost,127.0.0.1,internal"
+      NO_PROXY: "localhost,127.0.0.1,tor,9router-master"
     networks:
-      - clawbox-net""")
+      - sbx-net""")
         volumes_def.append(f"  {vol_name}:")
 
     compose = f"""x-common: &common
@@ -1684,7 +1785,7 @@ services:
   tor:
     <<: *service-slave
     image: dockurr/tor
-    container_name: clawbox-tor
+    container_name: sbx-tor
     pull_policy: missing
     ports:
       - "9050:9050"
@@ -1697,26 +1798,33 @@ services:
       CHECK: "${{TOR_CHECK:-false}}"
       DEBUG: "${{TOR_DEBUG:-false}}"
     networks:
-      - clawbox-net
+      - sbx-net
 
   9router-master:
     <<: *service-master
     image: decolua/9router:${{NINEROUTER_TAG:-latest}}
-    container_name: clawbox-9router-master
+    container_name: sbx-9router-master
     pull_policy: missing
     ports:
       - "${{ROUTER_PORT_MASTER:-{master_port}}}:{master_port}"
     volumes:
       - 9router-master-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:{master_port}/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     environment:
       DATA_DIR: /app/data
       PORT: "${{ROUTER_PORT_MASTER:-{master_port}}}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
       HOSTNAME: 0.0.0.0
       ROLE: master
       JWT_SECRET: "${{JWT_SECRET:-P4s5w0rd}}"
       INITIAL_PASSWORD: "${{INITIAL_PASSWORD:-123456}}"
     networks:
-      - clawbox-net
+      - sbx-net
 {"".join(slave_services)}
 
 volumes:
@@ -1725,8 +1833,8 @@ volumes:
 {chr(10).join(volumes_def)}
 
 networks:
-  clawbox-net:
-    name: clawbox-net
+  sbx-net:
+    name: sbx-net
     driver: bridge
 """
     return compose
@@ -1740,7 +1848,7 @@ def generate_env(num_slaves: int) -> str:
     """Generate .env file with port assignments."""
     base_port = 20129
     lines = [
-        "# Clawbox — Providers Environment",
+        "# sbx — Providers Environment",
         "TZ=America/Sao_Paulo",
         "ROUTER_PORT_MASTER=20128",
     ]
@@ -1758,7 +1866,7 @@ def generate_env(num_slaves: int) -> str:
         "TOR_SOCKS_PORT=9050",
         "TOR_HTTP_PORT=8118",
         "TOR_PASSWORD=password",
-        "TOR_CHECK=false",
+        "TOR_CHECK=true",
         "TOR_DEBUG=false",
     ])
     return "\n".join(lines) + "\n"
@@ -1923,10 +2031,10 @@ def scale_pool(
 
     # 7. Sync to master (skip on scale-down — slaves removed, not added)
     if not no_sync and not dry_run and not is_scale_down:
-        info("Aguardando containers iniciarem...")
-        expected = num_slaves + 2  # slaves + master + tor
-        for attempt in range(10):
-            time.sleep(2)
+        info("Aguardando containers ficarem healthy...")
+        expected = num_slaves + 1  # slaves + master (tor não tem healthcheck)
+        for attempt in range(30):
+            time.sleep(3)
             check = subprocess.run(
                 ["docker", "compose", "ps", "--format", "json"],
                 cwd=BASE_DIR,
@@ -1934,12 +2042,18 @@ def scale_pool(
                 text=True,
             )
             if check.returncode == 0:
-                running = sum(
-                    1 for line in check.stdout.strip().split("\n")
-                    if line and json.loads(line).get("State") == "running"
-                )
-                if running >= expected:
+                healthy = 0
+                for line in check.stdout.strip().split("\n"):
+                    if not line:
+                        continue
+                    data = json.loads(line)
+                    state = data.get("State", "")
+                    health = data.get("Health", "")
+                    if state == "running" and health == "healthy":
+                        healthy += 1
+                if healthy >= expected:
                     break
+                info(f"Healthy: {healthy}/{expected}... ({attempt + 1}/30)")
         else:
             warning("Containers podem não estar totalmente prontos")
         info("Sincronizando com master...")
@@ -2068,10 +2182,10 @@ def clean_pool(
     total = len(slaves) + 2  # slaves + master + tor
 
     info(f"Containers para remover: {total}")
-    info(f"  - clawbox-tor")
-    info(f"  - clawbox-9router-master")
+    info(f"  - sbx-tor")
+    info(f"  - sbx-9router-master")
     for slave in slaves:
-        info(f"  - clawbox-{slave.name}")
+        info(f"  - sbx-{slave.name}")
 
     if dry_run:
         info("[dry-run] nada será removido")
@@ -2122,6 +2236,155 @@ def clean_pool(
     success("Pool limpo! Tudo removido.")
 
 
+def fetch_opencode_free_models() -> dict[str, list[str]]:
+    """Busca modelos free do opencode via suggested-models e testa thinking."""
+    import re
+    import requests as req
+
+    title("FETCH — Buscar modelos opencode free")
+
+    # 1. Login no master e obter API key
+    info("Fazendo login no master...")
+    s = req.Session()
+    try:
+        r = s.post(
+            "http://localhost:20128/api/auth/login",
+            json={"password": "123456"},
+            timeout=10,
+        )
+        # Obter API key via /api/keys
+        r2 = s.get("http://localhost:20128/api/keys", timeout=10)
+        if r2.status_code == 200:
+            keys = r2.json().get("keys", [])
+            api_key = keys[0].get("key", "") if keys else ""
+        else:
+            api_key = ""
+    except Exception as exc:
+        error(f"Erro ao fazer login: {exc}")
+        return {"thinking": [], "no_thinking": []}
+
+    if not api_key:
+        error("Não obteve API key")
+        return {"thinking": [], "no_thinking": []}
+
+    info(f"API key: {api_key[:20]}...")
+
+    # 2. Buscar lista de modelos free
+    info("Buscando modelos opencode free...")
+    try:
+        r = s.get(
+            "http://localhost:20128/api/providers/suggested-models",
+            params={
+                "url": "https://opencode.ai/zen/v1/models",
+                "type": "opencode-free",
+            },
+            timeout=15,
+        )
+        if r.status_code != 200:
+            error(f"Erro ao buscar modelos: {r.status_code}")
+            return {"thinking": [], "no_thinking": []}
+
+        data = r.json()
+        models = [m["id"] for m in data.get("data", [])]
+        success(f"Encontrados {len(models)} modelos free")
+    except Exception as exc:
+        error(f"Erro ao conectar: {exc}")
+        return {"thinking": [], "no_thinking": []}
+
+    # 3. Testar thinking de cada modelo
+    info("Testando thinking de cada modelo...")
+    thinking = []
+    no_thinking = []
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+
+    for model_id in models:
+        full_model = f"oc/{model_id}"
+        try:
+            payload = {
+                "model": full_model,
+                "input": "What is 2+2? Think step by step.",
+                "max_output_tokens": 2000,
+            }
+            r = req.post(
+                "http://localhost:20128/v1/responses",
+                json=payload,
+                headers=headers,
+                timeout=60,
+            )
+            text = r.text
+
+            reasoning_match = re.search(
+                r'"reasoning_tokens":\s*(\d+)', text
+            )
+            reasoning_tokens = (
+                int(reasoning_match.group(1)) if reasoning_match else 0
+            )
+
+            has_thinking = reasoning_tokens > 10
+
+            if has_thinking:
+                thinking.append(full_model)
+                info(f"  ✓ {full_model} → THINKING ({reasoning_tokens} tokens)")
+            else:
+                no_thinking.append(full_model)
+                info(f"  ✓ {full_model} → NO THINKING")
+
+        except Exception as exc:
+            warning(f"  ✗ {full_model} → FALHOU: {exc}")
+
+    success(
+        f"Result: {len(thinking)} thinking, {len(no_thinking)} no thinking"
+    )
+    return {"thinking": thinking, "no_thinking": no_thinking}
+
+
+def update_config_with_models(
+    config: dict[str, Any],
+    models: dict[str, list[str]],
+) -> None:
+    """Atualiza config.json com modelos descobertos."""
+    thinking = models.get("thinking", [])
+    no_thinking = models.get("no_thinking", [])
+    all_models = thinking + no_thinking
+
+    if not all_models:
+        warning("Nenhum modelo encontrado, mantendo config atual")
+        return
+
+    title("UPDATE — Atualizando config.json")
+
+    # defaults.models = todos os modelos
+    config["defaults"]["models"] = all_models
+    info(f"defaults.models: {len(all_models)} modelos")
+
+    # combos
+    config["defaults"]["combos"] = []
+
+    if thinking:
+        config["defaults"]["combos"].append(
+            {"name": "claude-opus-5", "models": thinking}
+        )
+        info(f"combo claude-opus-5: {len(thinking)} modelos (thinking)")
+
+    if no_thinking:
+        config["defaults"]["combos"].append(
+            {"name": "claude-sonnet-5", "models": no_thinking}
+        )
+        info(f"combo claude-sonnet-5: {len(no_thinking)} modelos (no thinking)")
+
+    # publish = nomes dos combos
+    config["defaults"]["publish"] = [
+        c["name"] for c in config["defaults"]["combos"]
+    ]
+
+    save_config(config)
+    success("config.json atualizado")
+
+
 def create_pool(
     config: dict[str, Any],
     dry_run: bool = False,
@@ -2133,6 +2396,8 @@ def create_pool(
     if dry_run:
         info("[dry-run] nada será criado")
         return
+
+    master = master_instance(config)
 
     # 1. Reset config.json para 1 slave
     info("Resetando config.json para 1 slave...")
@@ -2176,10 +2441,11 @@ def create_pool(
         error(f"docker compose up falhou: {result.stderr}")
         return
 
-    # 4. Aguardar containers ficarem prontos
-    info("Aguardando containers...")
-    for attempt in range(15):
-        time.sleep(2)
+    # 4. Aguardar containers ficarem healthy
+    time.sleep(5)
+    info("Aguardando containers ficarem healthy...")
+    for attempt in range(30):
+        time.sleep(3)
         check = subprocess.run(
             ["docker", "compose", "ps", "--format", "json"],
             cwd=BASE_DIR,
@@ -2187,16 +2453,29 @@ def create_pool(
             text=True,
         )
         if check.returncode == 0:
-            running = sum(
-                1 for line in check.stdout.strip().split("\n")
-                if line and json.loads(line).get("State") == "running"
-            )
-            if running >= 3:  # master + slave + tor
+            healthy = 0
+            for line in check.stdout.strip().split("\n"):
+                if not line:
+                    continue
+                data = json.loads(line)
+                state = data.get("State", "")
+                health = data.get("Health", "")
+                if state == "running" and health == "healthy":
+                    healthy += 1
+            if healthy >= 2:  # master + slave (tor não tem healthcheck)
                 break
+            info(f"Healthy: {healthy}/2... ({attempt + 1}/30)")
     else:
         warning("Containers podem não estar totalmente prontos")
 
-    # 5. Sync
+    # 5. Health check no master via API (double-check)
+    wait_for_instance(master, max_attempts=10, delay=3)
+
+    # 6. Buscar modelos opencode free e atualizar config
+    models = fetch_opencode_free_models()
+    update_config_with_models(config, models)
+
+    # 7. Sync
     info("Sincronizando com master...")
     sync_pool(config, dry_run=False)
 

@@ -1,20 +1,18 @@
-SERVICES := ai-memory claude-code opencode 9router omniroute
+SERVICES := ai-memory claude-code 9router 
 
 .PHONY: up down logs clean build cc code $(SERVICES)
 
 # Targets vazios para Make não reclamar com: make down ai-memory
 ai-memory:; @true
 claude-code:; @true
-opencode:; @true
 9router:; @true
-omniroute:; @true
 
 # make up SERVICE=ai-memory / make up cc / make up code
 up:
 	@if [ -z "$(filter $(SERVICES),$(SERVICE))" ]; then \
 		echo "Uso: make up SERVICE=<servico>"; \
 		echo "Servicos: $(SERVICES)"; \
-		echo "Atalhos: make cc (=claude-code), make code (=opencode)"; \
+		echo "Atalhos: make cc (=claude-code)"; \
 		exit 1; \
 	fi
 	cd scripts/$(SERVICE) && make up
@@ -22,9 +20,6 @@ up:
 # Atalhos
 cc:
 	cd scripts/claude-code && make run
-
-code:
-	cd scripts/opencode && make run
 
 # make down SERVICE=ai-memory | make down (todos)
 down:
@@ -60,4 +55,3 @@ clean:
 # make build
 build:
 	docker compose -f scripts/claude-code/docker-compose.yaml build
-	docker compose -f scripts/opencode/docker-compose.yaml build
