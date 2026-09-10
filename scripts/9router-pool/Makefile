@@ -1,19 +1,38 @@
-COMPOSE := docker compose --env-file ../../.env
-BUILD := docker compose build --no-cache
+POOL := python3 pool.py
 
-.PHONY: up down logs clean
+.PHONY: list test sync create scale backup clean
 
-up:
-	$(COMPOSE) up -d  --remove-orphans
+# ============================================================================
+# Pool Manager
+# ============================================================================
 
-build:
-	$(BUILD)
+list:
+	$(POOL) list
 
-down:
-	$(COMPOSE) down
+test:
+	$(POOL) test
 
-logs:
-	$(COMPOSE) logs -f
+sync:
+	$(POOL) sync
+
+create:
+	$(POOL) create
+
+scale:
+	$(POOL) scale $(N)
+
+backup:
+	$(POOL) backup
 
 clean:
-	$(COMPOSE) down -v
+	$(POOL) clean
+	@volumes=$$(docker volume ls --filter name=9router -q 2>/dev/null); \
+	if [ -n "$$volumes" ]; then \
+		docker volume rm -f $$volumes; \
+	fi
+
+slave-add:
+	$(POOL) slave add $(NAME) $(HOST)
+
+slave-delete:
+	$(POOL) slave delete $(NAME)
