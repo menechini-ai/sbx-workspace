@@ -1,3 +1,0 @@
-# Rotate IP every 60 minutes (3600 seconds)
-MaxCircuitDirtiness 600
-NewCircuitPeriod 60

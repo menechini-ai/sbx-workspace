@@ -43,10 +43,6 @@ def generate_docker_compose(config: dict[str, Any], num_slaves: int) -> str:
       JWT_SECRET: "${{JWT_SECRET:-P4s5w0rd}}"
       MACHINE_ID_SALT: $(openssl rand -hex 32)
       INITIAL_PASSWORD: "${{INITIAL_PASSWORD:-123456}}"
-      HTTP_PROXY: "http://tor:8118"
-      HTTPS_PROXY: "http://tor:8118"
-      ALL_PROXY: "socks5://tor:9050"
-      NO_PROXY: "localhost,127.0.0.1,tor,9router-master"
     networks:
       - sbx-net""")
         volumes_def.append(f"  {vol_name}:")
@@ -84,24 +80,6 @@ x-service-slave: &service-slave
         cpus: "0.125"
 
 services:
-  tor:
-    <<: *service-slave
-    image: dockurr/tor
-    container_name: sbx-tor
-    pull_policy: missing
-    ports:
-      - "9050:9050"
-      - "8118:8118"
-    volumes:
-      - ./torrc:/etc/tor/torrc:ro
-      - 9router-tor-data:/var/lib/tor
-    environment:
-      PASSWORD: "${{TOR_PASSWORD:-password}}"
-      CHECK: "${{TOR_CHECK:-false}}"
-      DEBUG: "${{TOR_DEBUG:-false}}"
-    networks:
-      - sbx-net
-
   9router-master:
     <<: *service-master
     image: decolua/9router:${{NINEROUTER_TAG:-latest}}
@@ -130,7 +108,6 @@ services:
 {"".join(slave_services)}
 
 volumes:
-  9router-tor-data:
   9router-master-data:
 {chr(10).join(volumes_def)}
 
@@ -159,13 +136,6 @@ def generate_env(num_slaves: int) -> str:
         "",
         "JWT_SECRET=N7ZndMLMYqJu8QLRtY+dE1VynAdESAJfc7maXp+lHqY=",
         "INITIAL_PASSWORD=123456",
-        "",
-        "# Tor Proxy",
-        "TOR_SOCKS_PORT=9050",
-        "TOR_HTTP_PORT=8118",
-        "TOR_PASSWORD=password",
-        "TOR_CHECK=true",
-        "TOR_DEBUG=false",
     ])
     return "\n".join(lines) + "\n"
 

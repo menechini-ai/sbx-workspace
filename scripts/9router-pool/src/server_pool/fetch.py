@@ -12,7 +12,10 @@ from .config import save_config
 from .console import error, info, success, title, warning
 
 
-def fetch_opencode_free_models(master_host: str = "localhost:20128") -> dict[str, list[str]]:
+def fetch_opencode_free_models(
+    master_host: str = "localhost:20128",
+    master_password: str = "123456",
+) -> dict[str, list[str]]:
     """Busca modelos free do opencode via suggested-models e testa thinking."""
 
     title("FETCH — Buscar modelos opencode free")
@@ -28,7 +31,7 @@ def fetch_opencode_free_models(master_host: str = "localhost:20128") -> dict[str
         try:
             r = s.post(
                 f"{base_url}/api/auth/login",
-                json={"password": "123456"},
+                json={"password": master_password},
                 timeout=10,
             )
             if r.status_code != 200:

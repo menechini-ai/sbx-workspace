@@ -11,6 +11,7 @@
       "oc/muse-spark-1.2-contributor-free",
       "oc/mimo-v2.5-free",
       "oc/ling-3.0-flash-fin-free",
+      "oc/nemotron-3-ultra-free",
       "oc/nemotron-3.5-lightning-free"
     ],
     "combos": [
@@ -22,6 +23,7 @@
           "oc/muse-spark-1.2-contributor-free",
           "oc/mimo-v2.5-free",
           "oc/ling-3.0-flash-fin-free",
+          "oc/nemotron-3-ultra-free",
           "oc/nemotron-3.5-lightning-free"
         ]
       }
@@ -35,6 +37,12 @@
       "name": "rs001",
       "host": "localhost:20129",
       "docker_host": "9router-slave-001:20129",
+      "password": "123456"
+    },
+    {
+      "name": "rs002",
+      "host": "localhost:20130",
+      "docker_host": "9router-slave-002:20130",
       "password": "123456"
     }
   ]

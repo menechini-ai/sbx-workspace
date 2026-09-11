@@ -153,6 +153,30 @@ def main() -> None:
         help="Simular sem alterar nada",
     )
 
+    # watch
+    watch_parser = subparsers.add_parser(
+        "watch",
+        help="Monitorar saúde dos slaves e substituir automaticamente os com falha",
+    )
+    watch_parser.add_argument(
+        "--interval",
+        type=int,
+        default=60,
+        help="Segundos entre verificações (padrão: 60)",
+    )
+    watch_parser.add_argument(
+        "--failures",
+        type=int,
+        default=2,
+        help="Falhas consecutivas antes de substituir o slave (padrão: 2)",
+    )
+    watch_parser.add_argument(
+        "--fetch-interval",
+        type=int,
+        default=21600,
+        help="Segundos entre auto-discovery de modelos (padrão: 21600 / 6h, 0 para desativar)",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -203,3 +227,14 @@ def main() -> None:
             config,
             dry_run=args.dry_run,
         )
+
+    elif args.command == "watch":
+        from .watch import watch_pool
+        watch_pool(
+            config,
+            interval=args.interval,
+            max_failures=args.failures,
+            fetch_interval=args.fetch_interval,
+        )
+
+

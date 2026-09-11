@@ -806,3 +806,383 @@ def sync_pool(
     success(
         "\nSync concluído!"
     )
+
+
+def _remove_slave_from_master(
+    master_client: RouterClient,
+    slave_name: str,
+    defaults: dict[str, Any],
+) -> None:
+    """
+    Remove provider connection, provider node e atualiza combos
+    para excluir modelos do slave_name. Não toca em outros slaves.
+    """
+    try:
+        providers = master_client.get_providers()
+        for p in providers:
+            if p.get("name") == slave_name:
+                master_client.delete_provider(p["id"])
+                info(f"master: provider connection '{slave_name}' removido")
+    except Exception as exc:
+        warning(f"master: erro ao remover provider connection '{slave_name}': {exc}")
+
+    try:
+        nodes = master_client.get_provider_nodes()
+        for n in nodes:
+            if n.get("name") == slave_name:
+                master_client.delete_provider_node(n["id"])
+                info(f"master: provider node '{slave_name}' removido")
+    except Exception as exc:
+        warning(f"master: erro ao remover provider node '{slave_name}': {exc}")
+
+    try:
+        publish = defaults.get("publish", [])
+        existing_combos = master_client.get_combos()
+        for combo in existing_combos:
+            if combo.get("name") not in publish:
+                continue
+            old_models = combo.get("models", [])
+            new_models = [m for m in old_models if not m.startswith(f"{slave_name}/")]
+            if len(new_models) != len(old_models):
+                master_client.delete_combo(combo["id"])
+                master_client.create_combo(name=combo["name"], models=new_models)
+                info(f"master: combo '{combo['name']}' atualizado (removido {slave_name})")
+    except Exception as exc:
+        warning(f"master: erro ao atualizar combos na remoção de '{slave_name}': {exc}")
+
+
+def quarantine_slave(
+    config: dict[str, Any],
+    slave_name: str,
+) -> bool:
+    """
+    Coloca o slave em quarentena: remove temporariamente os modelos do slave dos combos do master.
+    O container permanece rodando, mas não recebe requisições dos clientes.
+    """
+    defaults = config["defaults"]
+    master = master_instance(config)
+    master_client = RouterClient(master)
+
+    if not master_client.login():
+        return False
+
+    title(f"QUARENTENA {slave_name} — removendo dos combos do master")
+    try:
+        publish = defaults.get("publish", [])
+        existing_combos = master_client.get_combos()
+        for combo in existing_combos:
+            if combo.get("name") not in publish:
+                continue
+            old_models = combo.get("models", [])
+            new_models = [m for m in old_models if not m.startswith(f"{slave_name}/")]
+            if len(new_models) != len(old_models):
+                master_client.delete_combo(combo["id"])
+                master_client.create_combo(name=combo["name"], models=new_models)
+                warning(f"master: slave '{slave_name}' em quarentena (removido do combo '{combo['name']}')")
+        return True
+    except Exception as exc:
+        warning(f"master: erro ao colocar '{slave_name}' em quarentena: {exc}")
+        return False
+
+
+def unquarantine_slave(
+    config: dict[str, Any],
+    slave_name: str,
+) -> bool:
+    """
+    Remove o slave da quarentena: re-adiciona os modelos do slave aos combos do master.
+    """
+    defaults = config["defaults"]
+    master = master_instance(config)
+    master_client = RouterClient(master)
+
+    if not master_client.login():
+        return False
+
+    title(f"DESFAZER QUARENTENA {slave_name} — devolvendo aos combos do master")
+    try:
+        all_models = defaults.get("models", [])
+        publish = defaults.get("publish", [])
+        other_combo_names = {c["name"] for c in defaults.get("combos", []) if c["name"] in publish}
+        existing_combos = master_client.get_combos()
+
+        for combo_config in defaults.get("combos", []):
+            combo_name = combo_config["name"]
+            if combo_name not in publish:
+                continue
+            existing = next((c for c in existing_combos if c.get("name") == combo_name), None)
+            current_models = existing.get("models", []) if existing else []
+
+            new_entries = []
+            for model_str in all_models:
+                if model_str in other_combo_names and model_str != combo_name:
+                    continue
+                entry = f"{slave_name}/{model_str}"
+                if entry not in current_models:
+                    new_entries.append(entry)
+
+            if new_entries:
+                if existing:
+                    master_client.delete_combo(existing["id"])
+                master_client.create_combo(
+                    name=combo_name,
+                    models=current_models + new_entries,
+                )
+                success(f"master: slave '{slave_name}' fora da quarentena (devolvido ao combo '{combo_name}')")
+        return True
+    except Exception as exc:
+        warning(f"master: erro ao tirar '{slave_name}' da quarentena: {exc}")
+        return False
+
+
+def hot_reload_master_models(config: dict[str, Any]) -> None:
+    """
+    Atualiza Custom Models e Combos no Master com base no config.json sem reiniciar Slaves.
+    """
+    defaults = config["defaults"]
+    slaves = slave_instances(config)
+    master = master_instance(config)
+
+    master_client = RouterClient(master)
+    if not master_client.login():
+        warning("hot_reload: login no master falhou")
+        return
+
+    title("HOT-RELOAD MODELOS NO MASTER")
+
+    # 1. Mapear provider nodes existentes
+    try:
+        nodes = master_client.get_provider_nodes()
+        node_ids = {n["name"]: n["id"] for n in nodes if n.get("name") and n.get("id")}
+    except Exception as exc:
+        warning(f"hot_reload: erro ao buscar provider nodes: {exc}")
+        return
+
+    # 2. Adicionar custom models para cada slave/node
+    all_models = defaults.get("models", [])
+    combo_models = [m for c in defaults.get("combos", []) for m in c.get("models", [])]
+    all_target_models = set(all_models + combo_models)
+
+    for slave in slaves:
+        if slave.name not in node_ids:
+            continue
+        node_id = node_ids[slave.name]
+        for model_str in all_target_models:
+            parts = model_str.split("/", 1)
+            model_id = parts[1] if len(parts) == 2 else model_str
+            try:
+                master_client.add_custom_model(
+                    provider_alias=node_id,
+                    model_id=model_id,
+                    model_name=model_id,
+                )
+            except Exception:
+                pass
+
+    # 3. Recriar/atualizar combos no master
+    publish = defaults.get("publish", [])
+    other_combo_names = {c["name"] for c in defaults.get("combos", []) if c["name"] in publish}
+    existing_combos = master_client.get_combos()
+
+    for combo_config in defaults.get("combos", []):
+        combo_name = combo_config["name"]
+        if combo_name not in publish:
+            continue
+
+        combo_models_orig = combo_config.get("models", [])
+        final_models = list(combo_models_orig)
+
+        for slave in slaves:
+            if slave.name not in node_ids:
+                continue
+            for model_str in all_models:
+                if model_str in other_combo_names and model_str != combo_name:
+                    continue
+                prefixed = f"{slave.name}/{model_str}"
+                final_models.append(prefixed)
+
+        # Atualizar combo se existia ou criar novo
+        existing = next((c for c in existing_combos if c.get("name") == combo_name), None)
+        if existing:
+            try:
+                master_client.delete_combo(existing["id"])
+            except Exception:
+                pass
+        try:
+            master_client.create_combo(name=combo_name, models=final_models)
+            success(f"master: hot-reload combo '{combo_name}' ({len(final_models)} modelos)")
+        except Exception as exc:
+            warning(f"master: erro no hot-reload combo '{combo_name}': {exc}")
+
+
+
+def _add_slave_to_master(
+    master_client: RouterClient,
+    slave: Instance,
+    api_key: str,
+    defaults: dict[str, Any],
+) -> str:
+    """
+    Cria: provider node + connection + custom models.
+    Atualiza combos existentes adicionando modelos do slave.
+    Retorna node_id criado.
+    """
+    node = master_client.create_provider_node(
+        name=slave.name,
+        prefix=slave.name,
+        base_url=f"{slave.docker_url}/v1",
+        node_type="anthropic-compatible",
+    )
+    node_id = node.get("id", "")
+    success(f"master: provider node '{slave.name}' criado (id={node_id})")
+
+    master_client.create_provider(
+        provider_type=node_id,
+        name=slave.name,
+        api_key=api_key,
+        base_url=f"{slave.docker_url}/v1",
+        priority=1,
+        default_model="claude-sonnet-5",
+        provider_specific_data={
+            "prefix": slave.name,
+            "baseUrl": f"{slave.docker_url}/v1",
+            "nodeName": slave.name,
+        },
+    )
+    success(f"master: provider connection '{slave.name}' criado")
+
+    all_models = defaults.get("models", [])
+    combo_models = [m for c in defaults.get("combos", []) for m in c.get("models", [])]
+    for model_str in set(all_models + combo_models):
+        parts = model_str.split("/", 1)
+        model_id = parts[1] if len(parts) == 2 else model_str
+        try:
+            master_client.add_custom_model(
+                provider_alias=node_id,
+                model_id=model_id,
+                model_name=model_id,
+            )
+        except Exception:
+            pass
+
+    publish = defaults.get("publish", [])
+    other_combo_names = {c["name"] for c in defaults.get("combos", []) if c["name"] in publish}
+    existing_combos = master_client.get_combos()
+
+    for combo_config in defaults.get("combos", []):
+        combo_name = combo_config["name"]
+        if combo_name not in publish:
+            continue
+        existing = next((c for c in existing_combos if c.get("name") == combo_name), None)
+        current_models = existing.get("models", []) if existing else []
+
+        new_entries = []
+        for model_str in all_models:
+            if model_str in other_combo_names and model_str != combo_name:
+                continue
+            entry = f"{slave.name}/{model_str}"
+            if entry not in current_models:
+                new_entries.append(entry)
+
+        if new_entries:
+            if existing:
+                master_client.delete_combo(existing["id"])
+            master_client.create_combo(
+                name=combo_name,
+                models=current_models + new_entries,
+            )
+            info(f"master: combo '{combo_name}' atualizado (+{len(new_entries)} modelos de {slave.name})")
+
+    try:
+        settings = master_client.get_settings()
+        strats = settings.get("providerStrategies", {})
+        strats[node_id] = {"fallbackStrategy": "round-robin", "stickyRoundRobinLimit": 1}
+        master_client.update_settings(providerStrategies=strats)
+    except Exception as exc:
+        warning(f"master: round-robin para '{slave.name}': {exc}")
+
+    return node_id
+
+
+def replace_slave(
+    config: dict[str, Any],
+    slave_name: str,
+) -> bool:
+    """
+    Delete completo + create fresco de um slave:
+    1. Remove do master
+    2. Para e deleta container + volume
+    3. Recria container
+    4. Configura slave
+    5. Re-adiciona ao master
+    Retorna True se bem-sucedido.
+    """
+    import subprocess
+    from .config import BASE_DIR
+    from .sync import configure_slave
+
+    slaves = slave_instances(config)
+    slave = next((s for s in slaves if s.name == slave_name), None)
+    if not slave:
+        error(f"replace_slave: slave '{slave_name}' não encontrado no config")
+        return False
+
+    defaults = config["defaults"]
+    master = master_instance(config)
+    master_client = RouterClient(master)
+
+    if not master_client.login():
+        error("replace_slave: login no master falhou")
+        return False
+
+    title(f"REPLACE {slave_name} — removendo do master")
+    _remove_slave_from_master(master_client, slave_name, defaults)
+
+    # Identificar o índice do slave para o nome do serviço docker
+    # Supondo padronização rs001 -> 9router-slave-001
+    slave_num = slave_name.replace("rs", "")
+    service_name = f"9router-slave-{slave_num}"
+    container_name = f"sbx-{service_name}"
+    # Nome do volume criado pelo docker compose
+    vol_name = f"9router-pool_{service_name}-data"
+
+    info(f"Parando container '{container_name}'...")
+    subprocess.run(
+        ["docker", "compose", "stop", service_name],
+        cwd=BASE_DIR, capture_output=True,
+    )
+    subprocess.run(
+        ["docker", "compose", "rm", "-f", service_name],
+        cwd=BASE_DIR, capture_output=True,
+    )
+
+    info(f"Removendo volume '{vol_name}'...")
+    subprocess.run(
+        ["docker", "volume", "rm", vol_name],
+        capture_output=True,
+    )
+
+    info(f"Criando novo container '{service_name}'...")
+    result = subprocess.run(
+        ["docker", "compose", "up", "-d", "--no-deps", service_name],
+        cwd=BASE_DIR, capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        error(f"replace_slave: docker compose up falhou: {result.stderr}")
+        return False
+
+    if not wait_for_instance(slave, max_attempts=20, delay=3):
+        error(f"replace_slave: {slave_name} não ficou pronto a tempo")
+        return False
+
+    api_key = configure_slave(slave, defaults)
+    if not api_key:
+        error(f"replace_slave: configure_slave falhou para {slave_name}")
+        return False
+
+    title(f"REPLACE {slave_name} — re-adicionando ao master")
+    _add_slave_to_master(master_client, slave, api_key, defaults)
+
+    success(f"replace_slave: {slave_name} substituído com sucesso!")
+    return True
+

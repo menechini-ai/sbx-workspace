@@ -26,6 +26,13 @@ from .models import (
     slave_instances,
     wait_for_instance,
 )
+from .sync import (
+    hot_reload_master_models,
+    quarantine_slave,
+    replace_slave,
+    unquarantine_slave,
+)
+from .watch import watch_pool
 
 __all__ = [
     "backup_pool",
@@ -37,6 +44,11 @@ __all__ = [
     "slave_delete",
     "sync_pool",
     "test_pool",
+    "replace_slave",
+    "quarantine_slave",
+    "unquarantine_slave",
+    "hot_reload_master_models",
+    "watch_pool",
     "BASE_DIR",
     "CONFIG_FILE",
     "load_config",

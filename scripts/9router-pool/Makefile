@@ -1,6 +1,6 @@
 POOL := python3 pool.py
 
-.PHONY: list test sync create scale backup clean
+.PHONY: list test sync create scale backup clean watch
 
 # ============================================================================
 # Pool Manager
@@ -14,6 +14,9 @@ test:
 
 sync:
 	$(POOL) sync
+
+watch:
+	$(POOL) watch
 
 create:
 	$(POOL) create
@@ -36,3 +39,4 @@ slave-add:
 
 slave-delete:
 	$(POOL) slave delete $(NAME)
+

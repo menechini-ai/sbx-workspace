@@ -36,7 +36,7 @@ Gerencia um pool de 9Router com 1 Master + N Slaves (1-15) usando Round Robin lo
 ## Início Rápido
 
 ```bash
-# 1. Criar pool básico (1 master + 1 slave)
+# 1. Criar pool básico (1 master + 2 slaves)
 python3 pool.py create
 
 # 2. Usar a API key do master nos clientes
@@ -46,14 +46,14 @@ python3 pool.py create
 
 ### pool.py create
 
-Cria pool básico: 1 master + 1 slave, sobe containers e sincroniza.
+Cria pool básico: 1 master + 2 slaves, sobe containers e sincroniza.
 
 ```bash
 python3 pool.py create
 ```
 
 **O que faz:**
-1. Reseta config.json para 1 slave
+1. Reseta config.json para 2 slaves
 2. Gera docker-compose.yaml e .env
 3. Executa `docker compose up -d --remove-orphans`
 4. Aguarda containers ficarem prontos
@@ -119,6 +119,34 @@ Exemplo OpenCode:
   baseUrl: "http://localhost:20128/v1"
 ```
 
+**Opções:**
+```bash
+python3 pool.py sync --dry-run             # Simular sem alterar
+python3 pool.py sync --skip-health-check   # Ignorar validação lenta dos providers
+```
+
+### pool.py watch
+
+Inicia o Watchdog do Pool Vivo & Autônomo (Monitoramento continuo, Auto-Discovery de modelos, Quarentena preventiva e Replace de slaves).
+
+```bash
+python3 pool.py watch
+```
+
+**O que faz:**
+1. **Health Check Contínuo**: Verifica a saúde de cada slave a cada `--interval` segundos (padrão: 60s).
+2. **Quarentena Preventiva (Circuit Breaker)**: Na 1ª falha ou erro `429 Rate Limit`, remove o slave dos combos do Master sem derrubar o container.
+3. **Auto-Healing (Delete + Create)**: Se o erro persistir na 2ª checagem consecutiva (`--failures`), deleta o container e volume do slave (`docker volume rm`) e recria um totalmente novo zerado.
+4. **Auto-Discovery & Hot-Reload**: Busca novos modelos gratuitos do OpenCode periodicamente (`--fetch-interval`), atualiza os combos no Master ao vivo sem interromper requisições.
+
+**Opções:**
+```bash
+python3 pool.py watch --interval 60 --failures 2 --fetch-interval 21600
+```
+- `--interval`: Segundos entre checagens de saúde (padrão: 60).
+- `--failures`: Falhas consecutivas para acionar o Replace completo (padrão: 2).
+- `--fetch-interval`: Segundos entre buscas de modelos free (padrão: 21600 / 6h, 0 para desativar).
+
 ### pool.py test
 
 Testa conectividade com todas as instâncias.
@@ -151,14 +179,14 @@ rs003 → localhost:20131
 
 ### pool.py scale N
 
-Escala o pool para N slaves (1-15).
+Escala o pool para N slaves (1-50).
 
 ```bash
 python3 pool.py scale 1      # 1 slave (padrão)
 python3 pool.py scale 3      # 3 slaves
 python3 pool.py scale 6      # 6 slaves
 python3 pool.py scale 10     # 10 slaves
-python3 pool.py scale 15     # 15 slaves (máximo)
+python3 pool.py scale 50     # 50 slaves (máximo)
 ```
 
 **O que faz:**
@@ -327,11 +355,14 @@ providers:
 
 | Arquivo | Descrição |
 |---------|-----------|
-| `pool.py` | Script principal de gerenciamento |
+| `pool.py` | Script principal de gerenciamento (entrypoint CLI) |
 | `config.json` | Configuração do pool |
 | `docker-compose.yaml` | Definição dos containers (gerado) |
 | `.env` | Variáveis de ambiente (gerado) |
 | `torrc` | Configuração do Tor proxy |
+| `src/server_pool/watch.py` | Módulo Watchdog (monitoramento, quarentena, auto-discovery, auto-healing) |
+| `src/server_pool/sync.py` | Lógica de sincronização, hot-reload e replace de slaves |
+| `src/server_pool/fetch.py` | Busca e teste de novos modelos gratuitos do OpenCode |
 
 ## Troubleshooting
 

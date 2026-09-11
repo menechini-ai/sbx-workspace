@@ -189,8 +189,8 @@ def scale_pool(
     """Scale pool to N slaves (1-50)."""
     title(f"SCALE → {num_slaves} slaves")
 
-    if num_slaves < 1:
-        error("Número de slaves deve ser >= 1")
+    if num_slaves < 2:
+        error("Número de slaves deve ser >= 2 (mínimo recomendado para réplica/failover)")
         return
     if num_slaves > 50:
         error("Número máximo de slaves: 50")
@@ -278,7 +278,7 @@ def scale_pool(
     # 7. Sync to master (skip on scale-down — slaves removed, not added)
     if not no_sync and not dry_run and not is_scale_down:
         info("Aguardando containers ficarem healthy...")
-        expected = num_slaves + 1  # slaves + master (tor não tem healthcheck)
+        expected = num_slaves + 1  # slaves + master
         for attempt in range(30):
             time.sleep(3)
             check = subprocess.run(
@@ -412,10 +412,9 @@ def clean_pool(
 
     master = master_instance(config)
     slaves = slave_instances(config)
-    total = len(slaves) + 2  # slaves + master + tor
+    total = len(slaves) + 1  # slaves + master
 
     info(f"Containers para remover: {total}")
-    info(f"  - sbx-tor")
     info(f"  - sbx-9router-master")
     for slave in slaves:
         info(f"  - sbx-{slave.name}")
@@ -437,29 +436,35 @@ def clean_pool(
     else:
         error(f"docker compose down falhou: {result.stderr}")
 
-    # 2. Reset config.json para 1 slave
-    info("Resetando config.json para 1 slave...")
+    # 2. Reset config.json para 2 slaves (mínimo)
+    info("Resetando config.json para 2 slaves...")
     config["slaves"] = [
         {
             "name": "rs001",
             "host": "localhost:20129",
             "docker_host": "9router-slave-001:20129",
             "password": "123456",
-        }
+        },
+        {
+            "name": "rs002",
+            "host": "localhost:20130",
+            "docker_host": "9router-slave-002:20130",
+            "password": "123456",
+        },
     ]
     save_config(config)
-    success("config.json resetado (1 slave)")
+    success("config.json resetado (2 slaves)")
 
-    # 3. Gerar docker-compose.yaml e .env para 1 slave
-    info("Gerando docker-compose.yaml para 1 slave...")
-    compose_content = generate_docker_compose(config, 1)
+    # 3. Gerar docker-compose.yaml e .env para 2 slaves
+    info("Gerando docker-compose.yaml para 2 slaves...")
+    compose_content = generate_docker_compose(config, 2)
     compose_path = BASE_DIR / "docker-compose.yaml"
     with compose_path.open("w", encoding="utf-8") as f:
         f.write(compose_content)
     success("docker-compose.yaml atualizado")
 
-    info("Gerando .env para 1 slave...")
-    env_content = generate_env(1)
+    info("Gerando .env para 2 slaves...")
+    env_content = generate_env(2)
     env_path = BASE_DIR / ".env"
     with env_path.open("w", encoding="utf-8") as f:
         f.write(env_content)
@@ -473,9 +478,9 @@ def create_pool(
     config: dict[str, Any],
     dry_run: bool = False,
 ) -> None:
-    """Cria pool básico: 1 master + 1 slave, sobe e sincroniza."""
+    """Cria pool básico: 1 master + 2 slaves, sobe e sincroniza."""
 
-    title("CREATE — Criar pool básico (1 master + 1 slave)")
+    title("CREATE — Criar pool básico (1 master + 2 slaves)")
 
     if dry_run:
         info("[dry-run] nada será criado")
@@ -483,29 +488,35 @@ def create_pool(
 
     master = master_instance(config)
 
-    # 1. Reset config.json para 1 slave
-    info("Resetando config.json para 1 slave...")
+    # 1. Reset config.json para 2 slaves (mínimo)
+    info("Resetando config.json para 2 slaves...")
     config["slaves"] = [
         {
             "name": "rs001",
             "host": "localhost:20129",
             "docker_host": "9router-slave-001:20129",
             "password": "123456",
-        }
+        },
+        {
+            "name": "rs002",
+            "host": "localhost:20130",
+            "docker_host": "9router-slave-002:20130",
+            "password": "123456",
+        },
     ]
     save_config(config)
-    success("config.json resetado (1 slave)")
+    success("config.json resetado (2 slaves)")
 
     # 2. Gerar docker-compose.yaml e .env
     info("Gerando docker-compose.yaml...")
-    compose_content = generate_docker_compose(config, 1)
+    compose_content = generate_docker_compose(config, 2)
     compose_path = BASE_DIR / "docker-compose.yaml"
     with compose_path.open("w", encoding="utf-8") as f:
         f.write(compose_content)
-    success("docker-compose.yaml atualizado")
+    success("docker-compose.yaml atualizado (2 slaves)")
 
     info("Gerando .env...")
-    env_content = generate_env(1)
+    env_content = generate_env(2)
     env_path = BASE_DIR / ".env"
     with env_path.open("w", encoding="utf-8") as f:
         f.write(env_content)
@@ -546,9 +557,9 @@ def create_pool(
                 health = data.get("Health", "")
                 if state == "running" and health == "healthy":
                     healthy += 1
-            if healthy >= 2:  # master + slave (tor não tem healthcheck)
+            if healthy >= 3:  # master + 2 slaves
                 break
-            info(f"Healthy: {healthy}/2... ({attempt + 1}/30)")
+            info(f"Healthy: {healthy}/3... ({attempt + 1}/30)")
     else:
         warning("Containers podem não estar totalmente prontos")
 
@@ -556,7 +567,10 @@ def create_pool(
     wait_for_instance(master, max_attempts=10, delay=3)
 
     # 6. Buscar modelos opencode free e atualizar config
-    models = fetch_opencode_free_models(master_host=master.host)
+    models = fetch_opencode_free_models(
+        master_host=master.host,
+        master_password=master.password,
+    )
     update_config_with_models(config, models)
 
     # 7. Sync
@@ -564,5 +578,5 @@ def create_pool(
     sync_pool(config, dry_run=False)
 
     print()
-    success("Pool criado! 1 master + 1 slave")
-    info("Portas: 20128 (master), 20129 (slave)")
+    success("Pool criado! 1 master + 2 slaves")
+    info("Portas: 20128 (master), 20129 (rs001), 20130 (rs002)")

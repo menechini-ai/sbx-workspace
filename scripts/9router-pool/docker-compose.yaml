@@ -31,24 +31,6 @@ x-service-slave: &service-slave
         cpus: "0.125"
 
 services:
-  tor:
-    <<: *service-slave
-    image: dockurr/tor
-    container_name: sbx-tor
-    pull_policy: missing
-    ports:
-      - "9050:9050"
-      - "8118:8118"
-    volumes:
-      - ./torrc:/etc/tor/torrc:ro
-      - 9router-tor-data:/var/lib/tor
-    environment:
-      PASSWORD: "${TOR_PASSWORD:-password}"
-      CHECK: "${TOR_CHECK:-false}"
-      DEBUG: "${TOR_DEBUG:-false}"
-    networks:
-      - sbx-net
-
   9router-master:
     <<: *service-master
     image: decolua/9router:${NINEROUTER_TAG:-latest}
@@ -98,17 +80,38 @@ services:
       JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
       MACHINE_ID_SALT: $(openssl rand -hex 32)
       INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
-      HTTP_PROXY: "http://tor:8118"
-      HTTPS_PROXY: "http://tor:8118"
-      ALL_PROXY: "socks5://tor:9050"
-      NO_PROXY: "localhost,127.0.0.1,tor,9router-master"
+    networks:
+      - sbx-net
+  9router-slave-002:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-002
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_002:-20130}:20130"
+    volumes:
+      - 9router-slave-002-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20130/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_002:-20130}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
     networks:
       - sbx-net
 
 volumes:
-  9router-tor-data:
   9router-master-data:
   9router-slave-001-data:
+  9router-slave-002-data:
 
 networks:
   sbx-net:
