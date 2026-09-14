@@ -1,7 +1,7 @@
 {
   "env": {
     "ANTHROPIC_BASE_URL": "http://localhost:20128/v1",
-    "ANTHROPIC_API_KEY": "sk-d348cf9fd655af52-c8hxls-57ad16aa",
+    "ANTHROPIC_API_KEY": "sk-8329ead9c1ed1f21-ok1kgd-6eacb7a5",
     "ANTHROPIC_MODEL": "claude-opus-5",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5",
@@ -42,7 +42,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(xargs -I {} sh -c 'echo \"=== {} ===\"; head -60 {}')",
       "Bash(make up *)",
-      "Bash(docker compose *)"
+      "Bash(docker compose *)",
+      "Bash(pup *)",
+      "Bash(workspace/scripts/investigate-incident.sh *)"
     ]
   },
   "enableAllProjectMcpServers": true,

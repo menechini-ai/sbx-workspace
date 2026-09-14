@@ -267,13 +267,13 @@ class RouterClient:
 
         return True
 
-    def test_provider(self, provider_id: str) -> dict[str, Any]:
+    def test_provider(self, provider_id: str, timeout: int | None = None) -> dict[str, Any]:
         self.require_login()
 
         response = self.session.post(
             f"{self.instance.base_url}/api/providers/{provider_id}/test",
             json={},
-            timeout=self.timeout,
+            timeout=timeout or self.timeout,
         )
 
         response.raise_for_status()

@@ -4,20 +4,20 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        UID: ${UID:-1000}
-        GID: ${GID:-1000}
+        UID: ${UID:-1001}
+        GID: ${GID:-1001}
     container_name: claude-code
     restart: unless-stopped
-    user: "${UID:-1000}:${GID:-1000}"
+    user: "${UID:-1001}:${GID:-1001}"
     ports:
       - "5555:5555"
     volumes:
-      - ${PWD}/../../../workspace:/workspace:cached
-      - ${PWD}/../../../Vault/ai-memory:/data
+      - ${PWD}/../../workspace:/workspace:cached
+      - ${PWD}/../../Vault/ai-memory:/data
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-http://host.docker.internal:20128/v1}
-      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-8}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-5}
       - AI_MEMORY_SERVER_URL=${AI_MEMORY_SERVER_URL:-http://host.docker.internal:49374}
       - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
       - WORKSPACE_DIR=/workspace

@@ -1,6 +1,6 @@
 COMPOSE := docker compose --env-file ../../.env
 
-.PHONY: up down logs clean run
+.PHONY: up down logs clean run attach
 
 up:
 	$(COMPOSE) up -d
@@ -15,4 +15,7 @@ clean:
 	$(COMPOSE) down -v
 
 run:
-	$(COMPOSE) run --rm claude-code
+	docker exec -it claude-code claude --dangerously-skip-permissions
+
+attach:
+	docker exec -it claude-code claude --dangerously-skip-permissions

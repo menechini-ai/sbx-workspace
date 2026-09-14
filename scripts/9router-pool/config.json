@@ -6,31 +6,41 @@
   },
   "defaults": {
     "models": [
-      "oc/big-pickle",
       "oc/muse-spark-1.3-contributor-free",
       "oc/muse-spark-1.2-contributor-free",
+      "oc/big-pickle",
       "oc/mimo-v2.5-free",
       "oc/ling-3.0-flash-fin-free",
-      "oc/nemotron-3-ultra-free",
-      "oc/nemotron-3.5-lightning-free"
+      "oc/nemotron-3-ultra-free"
     ],
     "combos": [
+      {
+        "name": "claude-opus-5",
+        "models": [
+          "oc/muse-spark-1.3-contributor-free",
+          "oc/muse-spark-1.2-contributor-free"
+        ]
+      },
       {
         "name": "claude-sonnet-5",
         "models": [
           "oc/big-pickle",
-          "oc/muse-spark-1.3-contributor-free",
-          "oc/muse-spark-1.2-contributor-free",
           "oc/mimo-v2.5-free",
           "oc/ling-3.0-flash-fin-free",
-          "oc/nemotron-3-ultra-free",
-          "oc/nemotron-3.5-lightning-free"
+          "oc/nemotron-3-ultra-free"
         ]
       }
     ],
     "publish": [
+      "claude-opus-5",
       "claude-sonnet-5"
-    ]
+    ],
+    "proxy": {
+      "name": "tor-proxy",
+      "url": "socks5://sbx-tor:9050",
+      "type": "socks5",
+      "noProxy": "localhost,127.0.0.1"
+    }
   },
   "slaves": [
     {
@@ -43,6 +53,114 @@
       "name": "rs002",
       "host": "localhost:20130",
       "docker_host": "9router-slave-002:20130",
+      "password": "123456"
+    },
+    {
+      "name": "rs003",
+      "host": "localhost:20131",
+      "docker_host": "9router-slave-003:20131",
+      "password": "123456"
+    },
+    {
+      "name": "rs004",
+      "host": "localhost:20132",
+      "docker_host": "9router-slave-004:20132",
+      "password": "123456"
+    },
+    {
+      "name": "rs005",
+      "host": "localhost:20133",
+      "docker_host": "9router-slave-005:20133",
+      "password": "123456"
+    },
+    {
+      "name": "rs006",
+      "host": "localhost:20134",
+      "docker_host": "9router-slave-006:20134",
+      "password": "123456"
+    },
+    {
+      "name": "rs007",
+      "host": "localhost:20135",
+      "docker_host": "9router-slave-007:20135",
+      "password": "123456"
+    },
+    {
+      "name": "rs008",
+      "host": "localhost:20136",
+      "docker_host": "9router-slave-008:20136",
+      "password": "123456"
+    },
+    {
+      "name": "rs009",
+      "host": "localhost:20137",
+      "docker_host": "9router-slave-009:20137",
+      "password": "123456"
+    },
+    {
+      "name": "rs010",
+      "host": "localhost:20138",
+      "docker_host": "9router-slave-010:20138",
+      "password": "123456"
+    },
+    {
+      "name": "rs011",
+      "host": "localhost:20139",
+      "docker_host": "9router-slave-011:20139",
+      "password": "123456"
+    },
+    {
+      "name": "rs012",
+      "host": "localhost:20140",
+      "docker_host": "9router-slave-012:20140",
+      "password": "123456"
+    },
+    {
+      "name": "rs013",
+      "host": "localhost:20141",
+      "docker_host": "9router-slave-013:20141",
+      "password": "123456"
+    },
+    {
+      "name": "rs014",
+      "host": "localhost:20142",
+      "docker_host": "9router-slave-014:20142",
+      "password": "123456"
+    },
+    {
+      "name": "rs015",
+      "host": "localhost:20143",
+      "docker_host": "9router-slave-015:20143",
+      "password": "123456"
+    },
+    {
+      "name": "rs016",
+      "host": "localhost:20144",
+      "docker_host": "9router-slave-016:20144",
+      "password": "123456"
+    },
+    {
+      "name": "rs017",
+      "host": "localhost:20145",
+      "docker_host": "9router-slave-017:20145",
+      "password": "123456"
+    },
+    {
+      "name": "rs018",
+      "host": "localhost:20146",
+      "docker_host": "9router-slave-018:20146",
+      "password": "123456"
+    },
+    {
+      "name": "rs019",
+      "host": "localhost:20147",
+      "docker_host": "9router-slave-019:20147",
+      "password": "123456"
+    },
+    {
+      "name": "rs020",
+      "host": "localhost:20148",
+      "docker_host": "9router-slave-020:20148",
       "password": "123456"
     }
   ]

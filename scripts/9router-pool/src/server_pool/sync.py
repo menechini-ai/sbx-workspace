@@ -69,6 +69,51 @@ def configure_slave(
     )
 
     # ------------------------------------------------------------------------
+    # CONFIGURAR PROXY POOL (Tor) via API do 9Router
+    # Este passo injeta SOCKS5 → sbx-tor:9050 no container do slave
+    # e registra o proxy pool no master, para que o round-robin use os slaves
+    # com Tor em vez de conexões diretas.
+    # ------------------------------------------------------------------------
+
+    proxy_cfg = defaults.get("proxy", {})
+    proxy_name = proxy_cfg.get("name", "tor-proxy")
+    proxy_url = proxy_cfg.get("url", "socks5://sbx-tor:9050")
+    proxy_type = proxy_cfg.get("type", "socks5")
+    proxy_no_proxy = proxy_cfg.get("noProxy", "localhost,127.0.0.1")
+
+    try:
+        existing_pools = client.get_proxy_pools()
+        already_ok = any(
+            p.get("name") == proxy_name and p.get("proxyUrl") == proxy_url
+            for p in existing_pools
+        )
+        if already_ok:
+            info(
+                f"{slave.name}: proxy pool '{proxy_name}' já configurado"
+            )
+        else:
+            try:
+                client.create_proxy_pool(
+                    name=proxy_name,
+                    proxy_url=proxy_url,
+                    pool_type=proxy_type,
+                    no_proxy=proxy_no_proxy,
+                )
+                success(
+                    f"{slave.name}: proxy pool '{proxy_name}' criado "
+                    f"(→ {proxy_url})"
+                )
+            except Exception as exc:
+                warning(
+                    f"{slave.name}: erro ao criar proxy pool "
+                    f"'{proxy_name}': {exc}"
+                )
+    except Exception as exc:
+        warning(
+            f"{slave.name}: proxy pools indisponíveis: {exc}"
+        )
+
+    # ------------------------------------------------------------------------
     # REMOVER API KEY EXISTENTE "pool-key"
     # ------------------------------------------------------------------------
 
@@ -408,7 +453,77 @@ def sync_master(
             )
 
     # ------------------------------------------------------------------------
-    # VERIFICAR HEALTH DOS PROVIDERS (paralelo)
+    # 3. CRIAR CUSTOM MODELS PARA CADA NODE
+    # ------------------------------------------------------------------------
+
+    for slave in slaves:
+        if slave.name not in node_ids:
+            continue
+
+        node_id = node_ids[slave.name]
+
+        # Modelos dos defaults (com retry)
+        for model in defaults.get("models", []):
+            parts = model.split("/", 1)
+            if len(parts) == 2:
+                alias, model_id = parts
+            else:
+                alias = "oc"
+                model_id = model
+
+            for attempt in range(3):
+                try:
+                    master_client.add_custom_model(
+                        provider_alias=node_id,
+                        model_id=model_id,
+                        model_name=model_id,
+                    )
+                    info(
+                        f"master: custom model '{node_id}/{model_id}' adicionado"
+                    )
+                    break
+                except Exception as exc:
+                    if attempt < 2:
+                        warning(f"master: retry {attempt + 1}/3 para custom model '{node_id}/{model_id}'")
+                        time.sleep(5)
+                        # Re-login after connection error
+                        try:
+                            master_client.login()
+                        except Exception:
+                            pass
+                    else:
+                        warning(
+                            f"master: erro ao adicionar custom model '{node_id}/{model_id}': {exc}"
+                        )
+
+        # Modelos dos combos (com retry)
+        for combo_config in defaults.get("combos", []):
+            for model in combo_config.get("models", []):
+                parts = model.split("/", 1)
+                if len(parts) == 2:
+                    _alias, model_id = parts
+                else:
+                    _alias = "oc"
+                    model_id = model
+
+                for attempt in range(3):
+                    try:
+                        master_client.add_custom_model(
+                            provider_alias=node_id,
+                            model_id=model_id,
+                            model_name=model_id,
+                        )
+                        break
+                    except Exception:
+                        if attempt < 2:
+                            time.sleep(5)
+                            try:
+                                master_client.login()
+                            except Exception:
+                                pass
+
+    # ------------------------------------------------------------------------
+    # HEALTH CHECK (paralelo) — DEPOIS dos custom models, para que /test veja ≥1 model
     # ------------------------------------------------------------------------
 
     if skip_health_check:
@@ -465,76 +580,6 @@ def sync_master(
                     warning(f"master: provider '{name}' → FALHOU: {err}")
                 else:
                     warning(f"master: provider '{name}' → FALHOU (sem detalhes)")
-
-    # ------------------------------------------------------------------------
-    # 3. CRIAR CUSTOM MODELS PARA CADA NODE
-    # ------------------------------------------------------------------------
-
-    for slave in slaves:
-        if slave.name not in node_ids:
-            continue
-
-        node_id = node_ids[slave.name]
-
-        # Modelos dos defaults (com retry)
-        for model in defaults.get("models", []):
-            parts = model.split("/", 1)
-            if len(parts) == 2:
-                alias, model_id = parts
-            else:
-                alias = "oc"
-                model_id = model
-
-            for attempt in range(3):
-                try:
-                    master_client.add_custom_model(
-                        provider_alias=node_id,
-                        model_id=model_id,
-                        model_name=model_id,
-                    )
-                    info(
-                        f"master: custom model '{node_id}/{model_id}' adicionado"
-                    )
-                    break
-                except Exception as exc:
-                    if attempt < 2:
-                        warning(f"master: retry {attempt + 1}/3 para custom model '{node_id}/{model_id}'")
-                        time.sleep(5)
-                        # Re-login after connection error
-                        try:
-                            master_client.login()
-                        except Exception:
-                            pass
-                    else:
-                        warning(
-                            f"master: erro ao adicionar custom model '{node_id}/{model_id}': {exc}"
-                        )
-
-        # Modelos dos combos (com retry)
-        for combo_config in defaults.get("combos", []):
-            for model in combo_config.get("models", []):
-                parts = model.split("/", 1)
-                if len(parts) == 2:
-                    alias, model_id = parts
-                else:
-                    alias = "oc"
-                    model_id = model
-
-                for attempt in range(3):
-                    try:
-                        master_client.add_custom_model(
-                            provider_alias=node_id,
-                            model_id=model_id,
-                            model_name=model_id,
-                        )
-                        break
-                    except Exception:
-                        if attempt < 2:
-                            time.sleep(5)
-                            try:
-                                master_client.login()
-                            except Exception:
-                                pass
 
     # ------------------------------------------------------------------------
     # 4. CRIAR COMBOS NO MASTER
@@ -1100,6 +1145,26 @@ def _add_slave_to_master(
         master_client.update_settings(providerStrategies=strats)
     except Exception as exc:
         warning(f"master: round-robin para '{slave.name}': {exc}")
+
+    # ------------------------------------------------------------------------
+    # TESTAR O PROVIDER RECÉM-CRIADO (após custom models + combos)
+    # ------------------------------------------------------------------------
+    try:
+        # Buscar o provider recém-criado pelo nome
+        providers = master_client.get_providers()
+        new_provider = next((p for p in providers if p.get("name") == slave.name), None)
+        if new_provider and new_provider.get("id"):
+            data = master_client.test_provider(new_provider["id"], timeout=120)
+            valid = data.get("valid", False)
+            err = data.get("error", "")
+            if valid:
+                success(f"master: provider '{slave.name}' → SAUDÁVEL")
+            else:
+                warning(f"master: provider '{slave.name}' → FALHOU: {err}")
+        else:
+            warning(f"master: provider '{slave.name}' não encontrado para teste")
+    except Exception as exc:
+        warning(f"master: erro ao testar provider '{slave.name}': {exc}")
 
     return node_id
 

@@ -20,26 +20,6 @@ from .sync import (
 MIN_SLAVES = 2
 
 
-def _test_provider(
-    master_client: RouterClient,
-    provider_id: str,
-    timeout: int = 30,
-) -> tuple[bool, str]:
-    """Testa um provider via master. Retorna (valid, error_msg)."""
-    try:
-        r = master_client.session.post(
-            f"{master_client.instance.base_url}/api/providers/{provider_id}/test",
-            json={},
-            timeout=timeout,
-        )
-        r.raise_for_status()
-        data = r.json()
-        err_msg = data.get("error") or ""
-        return data.get("valid", False), str(err_msg)
-    except Exception as exc:
-        return False, str(exc)
-
-
 def _is_rate_limited(err: str | None) -> bool:
     if not err:
         return False
@@ -47,16 +27,31 @@ def _is_rate_limited(err: str | None) -> bool:
     return "429" in msg or "rate limit" in msg or "too many" in msg
 
 
+def _test_provider_remote(
+    master_client: RouterClient,
+    provider_id: str,
+    timeout: int = 90,
+) -> tuple[bool, str]:
+    """Testa um provider via master usando RouterClient.test_provider().
+    Retorna (valid, error_msg)."""
+    try:
+        data = master_client.test_provider(provider_id, timeout=timeout)
+        err_msg = data.get("error") or ""
+        return data.get("valid", False), str(err_msg)
+    except Exception as exc:
+        return False, str(exc)
+
+
 def watch_pool(
     config: dict[str, Any],
-    interval: int = 60,
+    interval: int = 300,
     max_failures: int = 2,
-    fetch_interval: int = 21600,
+    fetch_interval: int = 600,
 ) -> None:
     """
     Loop de monitoramento contínuo e autônomo (Pool Vivo).
 
-    - Auto-Discovery de modelos a cada fetch_interval segundos (padrão 6h / 21600s).
+    - Auto-Discovery de modelos a cada fetch_interval segundos (padrão 6h / 600s).
     - Quarentena preventiva na 1ª falha (remove do combo do master sem matar o container).
     - Replace completo (Delete+Create) na max_failures consecutiva.
     - Desfaz quarentena se o slave se recuperar.
@@ -152,7 +147,9 @@ def watch_pool(
                 warning(f"  {slave.name}: ausente no master → +1 falha")
                 failure_counts[slave.name] += 1
             else:
-                valid, err = _test_provider(master_client, provider["id"], timeout=30)
+                # Usar o método do RouterClient em vez de POST manual.
+                # Isso garante require_login() e timeout adequado p/ Tor.
+                valid, err = _test_provider_remote(master_client, provider["id"], timeout=90)
                 kind = "429" if _is_rate_limited(err) else "ERRO"
 
                 if valid:

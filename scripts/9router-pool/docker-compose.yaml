@@ -80,6 +80,10 @@ services:
       JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
       MACHINE_ID_SALT: $(openssl rand -hex 32)
       INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
     networks:
       - sbx-net
   9router-slave-002:
@@ -105,6 +109,532 @@ services:
       JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
       MACHINE_ID_SALT: $(openssl rand -hex 32)
       INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-003:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-003
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_003:-20131}:20131"
+    volumes:
+      - 9router-slave-003-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20131/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_003:-20131}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-004:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-004
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_004:-20132}:20132"
+    volumes:
+      - 9router-slave-004-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20132/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_004:-20132}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-005:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-005
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_005:-20133}:20133"
+    volumes:
+      - 9router-slave-005-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20133/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_005:-20133}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-006:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-006
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_006:-20134}:20134"
+    volumes:
+      - 9router-slave-006-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20134/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_006:-20134}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-007:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-007
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_007:-20135}:20135"
+    volumes:
+      - 9router-slave-007-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20135/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_007:-20135}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-008:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-008
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_008:-20136}:20136"
+    volumes:
+      - 9router-slave-008-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20136/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_008:-20136}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-009:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-009
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_009:-20137}:20137"
+    volumes:
+      - 9router-slave-009-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20137/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_009:-20137}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-010:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-010
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_010:-20138}:20138"
+    volumes:
+      - 9router-slave-010-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20138/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_010:-20138}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-011:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-011
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_011:-20139}:20139"
+    volumes:
+      - 9router-slave-011-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20139/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_011:-20139}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-012:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-012
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_012:-20140}:20140"
+    volumes:
+      - 9router-slave-012-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20140/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_012:-20140}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-013:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-013
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_013:-20141}:20141"
+    volumes:
+      - 9router-slave-013-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20141/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_013:-20141}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-014:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-014
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_014:-20142}:20142"
+    volumes:
+      - 9router-slave-014-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20142/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_014:-20142}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-015:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-015
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_015:-20143}:20143"
+    volumes:
+      - 9router-slave-015-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20143/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_015:-20143}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-016:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-016
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_016:-20144}:20144"
+    volumes:
+      - 9router-slave-016-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20144/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_016:-20144}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-017:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-017
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_017:-20145}:20145"
+    volumes:
+      - 9router-slave-017-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20145/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_017:-20145}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-018:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-018
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_018:-20146}:20146"
+    volumes:
+      - 9router-slave-018-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20146/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_018:-20146}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-019:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-019
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_019:-20147}:20147"
+    volumes:
+      - 9router-slave-019-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20147/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_019:-20147}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
+    networks:
+      - sbx-net
+  9router-slave-020:
+    <<: *service-slave
+    image: decolua/9router:${NINEROUTER_TAG:-latest}
+    container_name: sbx-9router-slave-020
+    pull_policy: missing
+    ports:
+      - "${ROUTER_PORT_SLAVE_020:-20148}:20148"
+    volumes:
+      - 9router-slave-020-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20148/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${ROUTER_PORT_SLAVE_020:-20148}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
+      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
+      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
     networks:
       - sbx-net
 
@@ -112,6 +642,24 @@ volumes:
   9router-master-data:
   9router-slave-001-data:
   9router-slave-002-data:
+  9router-slave-003-data:
+  9router-slave-004-data:
+  9router-slave-005-data:
+  9router-slave-006-data:
+  9router-slave-007-data:
+  9router-slave-008-data:
+  9router-slave-009-data:
+  9router-slave-010-data:
+  9router-slave-011-data:
+  9router-slave-012-data:
+  9router-slave-013-data:
+  9router-slave-014-data:
+  9router-slave-015-data:
+  9router-slave-016-data:
+  9router-slave-017-data:
+  9router-slave-018-data:
+  9router-slave-019-data:
+  9router-slave-020-data:
 
 networks:
   sbx-net:

@@ -12,8 +12,8 @@ services:
       - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
       - AI_MEMORY_LLM_PROVIDER=anthropic
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
-      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-8}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-http://host.docker.internal:20128/v1}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-5}
     extra_hosts:
       - host.docker.internal:host-gateway
     networks:

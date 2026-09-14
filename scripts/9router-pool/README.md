@@ -134,18 +134,18 @@ python3 pool.py watch
 ```
 
 **O que faz:**
-1. **Health Check Contínuo**: Verifica a saúde de cada slave a cada `--interval` segundos (padrão: 60s).
+1. **Health Check Contínuo**: Verifica a saúde de cada slave a cada `--interval` segundos (padrão: 180s).
 2. **Quarentena Preventiva (Circuit Breaker)**: Na 1ª falha ou erro `429 Rate Limit`, remove o slave dos combos do Master sem derrubar o container.
 3. **Auto-Healing (Delete + Create)**: Se o erro persistir na 2ª checagem consecutiva (`--failures`), deleta o container e volume do slave (`docker volume rm`) e recria um totalmente novo zerado.
 4. **Auto-Discovery & Hot-Reload**: Busca novos modelos gratuitos do OpenCode periodicamente (`--fetch-interval`), atualiza os combos no Master ao vivo sem interromper requisições.
 
 **Opções:**
 ```bash
-python3 pool.py watch --interval 60 --failures 2 --fetch-interval 21600
+python3 pool.py watch --interval 60 --failures 2 --fetch-interval 600
 ```
 - `--interval`: Segundos entre checagens de saúde (padrão: 60).
 - `--failures`: Falhas consecutivas para acionar o Replace completo (padrão: 2).
-- `--fetch-interval`: Segundos entre buscas de modelos free (padrão: 21600 / 6h, 0 para desativar).
+- `--fetch-interval`: Segundos entre buscas de modelos free (padrão: 600 / 6h, 0 para desativar).
 
 ### pool.py test
 

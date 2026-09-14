@@ -43,6 +43,10 @@ def generate_docker_compose(config: dict[str, Any], num_slaves: int) -> str:
       JWT_SECRET: "${{JWT_SECRET:-P4s5w0rd}}"
       MACHINE_ID_SALT: $(openssl rand -hex 32)
       INITIAL_PASSWORD: "${{INITIAL_PASSWORD:-123456}}"
+      HTTP_PROXY: "${{TOR_SOCKS_URL:-socks5://sbx-tor:9050}}"
+      HTTPS_PROXY: "${{TOR_SOCKS_URL:-socks5://sbx-tor:9050}}"
+      ALL_PROXY: "${{TOR_SOCKS_URL:-socks5://sbx-tor:9050}}"
+      NO_PROXY: "${{TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}}"
     networks:
       - sbx-net""")
         volumes_def.append(f"  {vol_name}:")

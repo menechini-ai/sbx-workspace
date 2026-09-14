@@ -161,8 +161,8 @@ def main() -> None:
     watch_parser.add_argument(
         "--interval",
         type=int,
-        default=60,
-        help="Segundos entre verificações (padrão: 60)",
+        default=180,
+        help="Segundos entre verificações (padrão: 180)",
     )
     watch_parser.add_argument(
         "--failures",
@@ -173,8 +173,8 @@ def main() -> None:
     watch_parser.add_argument(
         "--fetch-interval",
         type=int,
-        default=21600,
-        help="Segundos entre auto-discovery de modelos (padrão: 21600 / 6h, 0 para desativar)",
+        default=600,
+        help="Segundos entre auto-discovery de modelos (padrão: 600 / 6h, 0 para desativar)",
     )
 
     args = parser.parse_args()

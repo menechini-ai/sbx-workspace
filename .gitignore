@@ -110,7 +110,7 @@ temp/
 .opencode/tmp/
 *.claude-session
 *.opencode-session
-
+settings.local.json
 # ============================
 # Git
 # ============================

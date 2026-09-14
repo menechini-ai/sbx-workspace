@@ -24,7 +24,11 @@ from .models import (
     slave_instances,
     wait_for_instance,
 )
-from .sync import sync_pool
+from .sync import (
+    sync_pool,
+    configure_slave,
+    _add_slave_to_master,
+)
 
 
 def list_pool(config: dict[str, Any]) -> None:
@@ -318,6 +322,7 @@ def slave_add(
     name: str,
     host: str,
     docker_host: str = "",
+    no_sync: bool = False,
 ) -> None:
 
     for slave in config["slaves"]:
@@ -337,6 +342,45 @@ def slave_add(
     save_config(config)
 
     success(f"Slave '{name}' adicionado → {host} (docker: {docker_host or host})")
+
+    if no_sync:
+        info("Pulando sincronização no master (--no-sync)")
+        info("Execute 'pool.py sync' depois de criar o container do slave")
+        return
+
+    # ------------------------------------------------------------------------
+    # Sync incremental: configura o slave + adiciona ao master
+    # ------------------------------------------------------------------------
+    title(f"SYNC INCREMENTAL — Adicionando {name} ao master")
+
+    defaults = config["defaults"]
+    master = master_instance(config)
+
+    # 1. Configurar o slave (combos, proxy, API key)
+    slave_instance = next((s for s in slave_instances(config) if s.name == name), None)
+    if not slave_instance:
+        error(f"Slave '{name}' não encontrado no config atualizado")
+        return
+
+    api_key = configure_slave(slave_instance, defaults)
+    if not api_key:
+        error(f"configure_slave falhou para {name}")
+        return
+
+    # 2. Login no master
+    master_client = RouterClient(master)
+    if not master_client.login():
+        error("Login no master falhou")
+        return
+
+    success("Master: login OK")
+
+    # 3. Adicionar ao master (node + connection + models + test)
+    try:
+        _add_slave_to_master(master_client, slave_instance, api_key, defaults)
+        success(f"Slave '{name}' sincronizado com o master com sucesso!")
+    except Exception as exc:
+        error(f"Falha ao adicionar '{name}' ao master: {exc}")
 
 
 def slave_delete(
