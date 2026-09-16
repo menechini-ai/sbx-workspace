@@ -26,10 +26,23 @@
           "oc/nemotron-3-ultra-free",
           "oc/nemotron-3.5-lightning-free"
         ]
+      },
+      {
+        "name": "claude-opus-5",
+        "models": [
+          "oc/big-pickle",
+          "oc/muse-spark-1.3-contributor-free",
+          "oc/muse-spark-1.2-contributor-free",
+          "oc/mimo-v2.5-free",
+          "oc/ling-3.0-flash-fin-free",
+          "oc/nemotron-3-ultra-free",
+          "oc/nemotron-3.5-lightning-free"
+        ]
       }
     ],
     "publish": [
-      "claude-sonnet-5"
+      "claude-sonnet-5",
+      "claude-opus-5"
     ],
     "proxy": {
       "name": "tor-proxy",
