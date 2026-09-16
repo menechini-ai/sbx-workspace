@@ -6,33 +6,29 @@
   },
   "defaults": {
     "models": [
+      "oc/big-pickle",
       "oc/muse-spark-1.3-contributor-free",
       "oc/muse-spark-1.2-contributor-free",
-      "oc/big-pickle",
       "oc/mimo-v2.5-free",
       "oc/ling-3.0-flash-fin-free",
-      "oc/nemotron-3-ultra-free"
+      "oc/nemotron-3-ultra-free",
+      "oc/nemotron-3.5-lightning-free"
     ],
     "combos": [
-      {
-        "name": "claude-opus-5",
-        "models": [
-          "oc/muse-spark-1.3-contributor-free",
-          "oc/muse-spark-1.2-contributor-free"
-        ]
-      },
       {
         "name": "claude-sonnet-5",
         "models": [
           "oc/big-pickle",
+          "oc/muse-spark-1.3-contributor-free",
+          "oc/muse-spark-1.2-contributor-free",
           "oc/mimo-v2.5-free",
           "oc/ling-3.0-flash-fin-free",
-          "oc/nemotron-3-ultra-free"
+          "oc/nemotron-3-ultra-free",
+          "oc/nemotron-3.5-lightning-free"
         ]
       }
     ],
     "publish": [
-      "claude-opus-5",
       "claude-sonnet-5"
     ],
     "proxy": {
@@ -101,66 +97,6 @@
       "name": "rs010",
       "host": "localhost:20138",
       "docker_host": "9router-slave-010:20138",
-      "password": "123456"
-    },
-    {
-      "name": "rs011",
-      "host": "localhost:20139",
-      "docker_host": "9router-slave-011:20139",
-      "password": "123456"
-    },
-    {
-      "name": "rs012",
-      "host": "localhost:20140",
-      "docker_host": "9router-slave-012:20140",
-      "password": "123456"
-    },
-    {
-      "name": "rs013",
-      "host": "localhost:20141",
-      "docker_host": "9router-slave-013:20141",
-      "password": "123456"
-    },
-    {
-      "name": "rs014",
-      "host": "localhost:20142",
-      "docker_host": "9router-slave-014:20142",
-      "password": "123456"
-    },
-    {
-      "name": "rs015",
-      "host": "localhost:20143",
-      "docker_host": "9router-slave-015:20143",
-      "password": "123456"
-    },
-    {
-      "name": "rs016",
-      "host": "localhost:20144",
-      "docker_host": "9router-slave-016:20144",
-      "password": "123456"
-    },
-    {
-      "name": "rs017",
-      "host": "localhost:20145",
-      "docker_host": "9router-slave-017:20145",
-      "password": "123456"
-    },
-    {
-      "name": "rs018",
-      "host": "localhost:20146",
-      "docker_host": "9router-slave-018:20146",
-      "password": "123456"
-    },
-    {
-      "name": "rs019",
-      "host": "localhost:20147",
-      "docker_host": "9router-slave-019:20147",
-      "password": "123456"
-    },
-    {
-      "name": "rs020",
-      "host": "localhost:20148",
-      "docker_host": "9router-slave-020:20148",
       "password": "123456"
     }
   ]

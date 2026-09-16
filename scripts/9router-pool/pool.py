@@ -40,7 +40,7 @@ Arquitetura:
         └── settings (round-robin por provider)
 
     Slaves
-        ├── providerConnections (upstream: kilocode, openrouter, etc.)
+        ├── providerConnections (upstream: openrouter, etc.)
         ├── proxyPools (Tor)
         ├── combos (modelos do defaults)
         └── customModels (modelos upstream)

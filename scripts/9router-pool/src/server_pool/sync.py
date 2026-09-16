@@ -248,7 +248,7 @@ def configure_slave(
             for combo in combos
         )
 
-        if not in_any_combo and pa in ("oc", "kc"):
+        if not in_any_combo and pa == "oc":
             try:
                 client.delete_custom_model(pa, mid)
                 info(
@@ -607,21 +607,12 @@ def sync_master(
 
         final_models = []
 
-        # 1. Modelos originais do combo (sem prefixo)
-        for model in combo_models:
-            final_models.append(model)
-
-        # 2. defaults.models prefixados com cada slave
-        #    Exclui modelos cujo nome é de OUTRO combo (ex: claude-sonnet-5 no combo claude-opus-5)
+        # Apenas o nome do combo prefixado com cada slave
         for slave in slaves:
             if slave.name not in node_ids:
                 continue
-
-            for model in all_models:
-                if model in other_combo_names and model != combo_name:
-                    continue
-                prefixed = f"{slave.name}/{model}"
-                final_models.append(prefixed)
+            prefixed = f"{slave.name}/{combo_name}"
+            final_models.append(prefixed)
 
         if not final_models:
             warning(
@@ -772,7 +763,17 @@ def sync_pool(
                     f"    - {combo_name}"
                 )
 
-        return
+    # Preview do Master
+    title("MASTER (preview)")
+
+    print("  Combos a serem criados:")
+    for combo_config in defaults.get("combos", []):
+        combo_name = combo_config["name"]
+        if combo_name not in defaults.get("publish", []):
+            continue
+        print(f"    - {combo_name}:")
+        for slave in slaves:
+            print(f"        - {slave.name}/{combo_name}")
 
     # ------------------------------------------------------------------------
     # 1. CONFIGURAR TODOS OS SLAVES
@@ -1034,17 +1035,13 @@ def hot_reload_master_models(config: dict[str, Any]) -> None:
         if combo_name not in publish:
             continue
 
-        combo_models_orig = combo_config.get("models", [])
-        final_models = list(combo_models_orig)
+        final_models = []
 
         for slave in slaves:
             if slave.name not in node_ids:
                 continue
-            for model_str in all_models:
-                if model_str in other_combo_names and model_str != combo_name:
-                    continue
-                prefixed = f"{slave.name}/{model_str}"
-                final_models.append(prefixed)
+            prefixed = f"{slave.name}/{combo_name}"
+            final_models.append(prefixed)
 
         # Atualizar combo se existia ou criar novo
         existing = next((c for c in existing_combos if c.get("name") == combo_name), None)
