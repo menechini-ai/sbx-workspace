@@ -1,0 +1,45 @@
+# Hermes Agent (NousResearch) — integração com sbx-net + ai-memory
+# Requer: HERMES_UID=$(id -u) HERMES_GID=$(id -g) docker compose up -d
+# Configuração do modelo via ~/.hermes/config.yaml ou env vars
+
+services:
+  hermes-gateway:
+    image: nousresearch/hermes-agent:latest
+    container_name: sbx-hermes-gateway
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - ${HERMES_DATA_VOLUME:-../../Vault/hermes:/opt/data}
+    environment:
+      - HERMES_UID=${HERMES_UID:-1000}
+      - HERMES_GID=${HERMES_GID:-1000}
+      # Provedor de modelo — use 9Router (nosso gateway gratuito)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_BASE_URL=http://localhost:20128/v1
+      # Integração ai-memory (MCP HTTP)
+      - AI_MEMORY_SERVER_URL=http://localhost:49374
+      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    command: ["gateway", "run"]
+
+  hermes-dashboard:
+    image: nousresearch/hermes-agent:latest
+    container_name: sbx-hermes-dashboard
+    restart: unless-stopped
+    network_mode: "host"
+    depends_on:
+      - hermes-gateway
+    volumes:
+      - ${HERMES_DATA_VOLUME:-../../Vault/hermes:/opt/data}
+    environment:
+      - HERMES_UID=${HERMES_UID:-1000}
+      - HERMES_GID=${HERMES_GID:-1000}
+      - AI_MEMORY_SERVER_URL=http://localhost:49374
+      - AI_MEMORY_AUTH_TOKEN=${AI_MEMORY_AUTH_TOKEN}
+    # Dashboard em localhost:9119 — use SSH tunnel para acesso remoto: ssh -L 9119:localhost:9119
+    command: ["dashboard", "--host", "127.0.0.1", "--no-open"]
+
+networks:
+  sbx-net:
+    external: true

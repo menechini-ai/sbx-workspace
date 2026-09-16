@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ai-memory": {
+      "type": "http",
+      "url": "http://localhost:49374/mcp",
+      "headers": {
+        "Authorization": "Bearer ${AI_MEMORY_AUTH_TOKEN}"
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+services:
+  tor:
+    image: dockurr/tor:latest
+    container_name: sbx-tor
+    restart: unless-stopped
+    ports:
+      - "${TOR_SOCKS_PORT:-9050}:9050"
+      - "${TOR_HTTP_PORT:-8118}:8118"
+    volumes:
+      - tor-data:/var/lib/tor
+    environment:
+      - PASSWORD=${TOR_PASSWORD:-}
+      - CHECK=${TOR_CHECK:-false}
+    networks:
+      - sbx-net
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9050"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  tor-data:
+
+networks:
+  sbx-net:
+    external: true

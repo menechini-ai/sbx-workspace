@@ -1,0 +1,8 @@
+# Privoxy → encaminha HTTP para o SOCKS5 do Tor
+confdir /etc/privoxy
+logdir /var/log/privoxy
+listen-address 0.0.0.0:8118
+forward-socks5 / 127.0.0.1:9050 .
+toggle 1
+enable-remote-toggle 0
+enable-edit-actions 0

@@ -49,7 +49,8 @@ Icon?
 .Trashes
 ehthumbs.db
 Thumbs.db
-
+__pycache__
+*.pyc
 # ============================
 # Logs
 # ============================
@@ -109,7 +110,7 @@ temp/
 .opencode/tmp/
 *.claude-session
 *.opencode-session
-
+settings.local.json
 # ============================
 # Git
 # ============================

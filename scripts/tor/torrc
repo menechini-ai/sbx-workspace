@@ -1,0 +1,7 @@
+# Minimal torrc — SOCKS5 only (HTTP 8118 é servido pelo privoxy)
+SocksPort 0.0.0.0:9050
+DataDirectory /var/lib/tor
+RunAsDaemon 0
+ClientOnly 1
+AvoidDiskWrites 1
+Log notice stderr
