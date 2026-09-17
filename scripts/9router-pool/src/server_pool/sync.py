@@ -683,7 +683,7 @@ def sync_master(
 def sync_pool(
     config: dict[str, Any],
     dry_run: bool = False,
-    skip_health_check: bool = False,
+    skip_health_check: bool = True,
 ) -> None:
 
     defaults = config["defaults"]
@@ -1178,7 +1178,14 @@ def replace_slave(
     4. Configura slave
     5. Re-adiciona ao master
     Retorna True se bem-sucedido.
+    
+    rs000 é permanente e nunca será substituído.
     """
+    # rs000 is permanent and cannot be replaced
+    if slave_name == "rs000":
+        error(f"replace_slave: '{slave_name}' é permanente e não pode ser substituído")
+        return False
+
     import subprocess
     from .config import BASE_DIR
     from .sync import configure_slave

@@ -190,29 +190,33 @@ def scale_pool(
     dry_run: bool = False,
     no_sync: bool = False,
 ) -> None:
-    """Scale pool to N slaves (1-50)."""
-    title(f"SCALE → {num_slaves} slaves")
+    """Scale pool to N regular slaves (rs001...rsN).
+    
+    rs000 is a permanent slave that is always present and never scaled.
+    """
+    title(f"SCALE → {num_slaves} regular slaves (+ rs000 permanent)")
 
     if num_slaves < 2:
-        error("Número de slaves deve ser >= 2 (mínimo recomendado para réplica/failover)")
+        error("Número de slaves regulares deve ser >= 2 (mínimo recomendado para réplica/failover)")
         return
     if num_slaves > 50:
-        error("Número máximo de slaves: 50")
+        error("Número máximo de slaves regulares: 50")
         return
 
-    current_count = len(config["slaves"])
+    # Count regular slaves (excluding rs000)
+    current_regular = len([s for s in config["slaves"] if s["name"] != "rs000"])
 
     # No-op
-    if num_slaves == current_count:
-        info(f"Pool já tem {num_slaves} slaves — nada a fazer")
+    if num_slaves == current_regular:
+        info(f"Pool já tem {num_slaves} slaves regulares — nada a fazer")
         return
 
-    is_scale_down = num_slaves < current_count
+    is_scale_down = num_slaves < current_regular
 
     if is_scale_down:
-        info(f"Removendo {current_count - num_slaves} slaves...")
+        info(f"Removendo {current_regular - num_slaves} slaves regulares...")
     else:
-        info(f"Adicionando {num_slaves - current_count} slaves...")
+        info(f"Adicionando {num_slaves - current_regular} slaves regulares...")
 
     # 1. Generate docker-compose.yaml
     info("Gerando docker-compose.yaml...")
@@ -264,11 +268,14 @@ def scale_pool(
                 error(result.stderr.strip())
             return
 
-    # 6. Remover volumes órfãos (escala para baixo)
+    # 6. Remover volumes órfãos (escala para baixo - apenas slaves regulares, rs000 é permanente)
     if is_scale_down and not dry_run:
-        info("Removendo volumes órfãos...")
-        for i in range(num_slaves + 1, current_count + 1):
-            vol_name = f"9routerv2_9router-slave-{i:03d}-data"
+        info("Removendo volumes órfãos (slaves regulares apenas)...")
+        # current_regular = old regular slaves count, num_slaves = new regular slaves count
+        # Remove volumes for regular slaves being removed: rs{num_slaves+1} to rs{current_regular}
+        for i in range(num_slaves + 1, current_regular + 1):
+            slave_num = f"{i:03d}"
+            vol_name = f"9router-pool_9router-slave-{slave_num}-data"
             result = subprocess.run(
                 ["docker", "volume", "rm", vol_name],
                 capture_output=True,
@@ -282,7 +289,7 @@ def scale_pool(
     # 7. Sync to master (skip on scale-down — slaves removed, not added)
     if not no_sync and not dry_run and not is_scale_down:
         info("Aguardando containers ficarem healthy...")
-        expected = num_slaves + 1  # slaves + master
+        expected = num_slaves + 2  # master + rs000 + regular slaves
         for attempt in range(30):
             time.sleep(3)
             check = subprocess.run(
@@ -311,10 +318,10 @@ def scale_pool(
 
     print()
     if is_scale_down:
-        success(f"Pool reduzido para {num_slaves} slaves")
+        success(f"Pool reduzido para {num_slaves} slaves regulares (+ rs000 permanente)")
     else:
-        success(f"Pool escalado para {num_slaves} slaves!")
-    info(f"Portas: 20128 (master), 20129-{20128 + num_slaves} (slaves)")
+        success(f"Pool escalado para {num_slaves} slaves regulares (+ rs000 permanente)!")
+    info(f"Portas: 20128 (master), 20129 (rs000), 20130-{20129 + num_slaves} (slaves regulares)")
 
 
 def slave_add(
@@ -324,6 +331,11 @@ def slave_add(
     docker_host: str = "",
     no_sync: bool = False,
 ) -> None:
+
+    # rs000 is permanent and cannot be added manually
+    if name == "rs000":
+        error("Slave 'rs000' é permanente e não pode ser adicionado manualmente")
+        return
 
     for slave in config["slaves"]:
         if slave["name"] == name:
@@ -389,6 +401,11 @@ def slave_delete(
     dry_run: bool = False,
 ) -> None:
 
+    # rs000 is permanent and cannot be deleted
+    if name == "rs000":
+        error("Slave 'rs000' é permanente e não pode ser removido")
+        return
+
     found = False
 
     for i, slave in enumerate(config["slaves"]):
@@ -450,64 +467,87 @@ def clean_pool(
     config: dict[str, Any],
     dry_run: bool = False,
 ) -> None:
-    """Limpa tudo: containers, dados, configs."""
-
-    title("CLEAN — Remover tudo")
+    """Limpa tudo: containers, dados, configs.
+    
+    rs000 é permanente - mantém o container e volume do rs000.
+    """
+    title("CLEAN — Remover tudo (exceto rs000 permanente)")
 
     master = master_instance(config)
     slaves = slave_instances(config)
-    total = len(slaves) + 1  # slaves + master
+    # Separate rs000 from regular slaves
+    rs000_slave = next((s for s in slaves if s.name == "rs000"), None)
+    regular_slaves = [s for s in slaves if s.name != "rs000"]
+    total = len(regular_slaves) + 1  # regular slaves + master (rs000 is kept)
 
     info(f"Containers para remover: {total}")
     info(f"  - sbx-9router-master")
-    for slave in slaves:
+    for slave in regular_slaves:
         info(f"  - sbx-{slave.name}")
+    if rs000_slave:
+        info(f"  - sbx-{rs000_slave.name} (MANTIDO - permanente)")
 
     if dry_run:
         info("[dry-run] nada será removido")
         return
 
-    # 1. Docker compose down (com -v remove volumes)
-    info("Parando containers e removendo volumes...")
-    result = subprocess.run(
-        ["docker", "compose", "down", "-v", "--remove-orphans"],
-        cwd=BASE_DIR,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0:
-        success("containers e volumes removidos")
-    else:
-        error(f"docker compose down falhou: {result.stderr}")
+    # 1. Docker compose down (com -v remove volumes) - mas mantém rs000
+    info("Parando containers e removendo volumes (exceto rs000)...")
+    # Stop and remove only master and regular slaves
+    services_to_remove = ["9router-master"] + [f"9router-slave-{s.name.replace('rs', '').zfill(3)}" for s in regular_slaves]
+    for service in services_to_remove:
+        subprocess.run(
+            ["docker", "compose", "stop", service],
+            cwd=BASE_DIR, capture_output=True,
+        )
+        subprocess.run(
+            ["docker", "compose", "rm", "-f", service],
+            cwd=BASE_DIR, capture_output=True,
+        )
+    # Remove volumes for regular slaves only
+    for slave in regular_slaves:
+        slave_num = slave.name.replace("rs", "").zfill(3)
+        vol_name = f"9router-pool_9router-slave-{slave_num}-data"
+        subprocess.run(
+            ["docker", "volume", "rm", vol_name],
+            capture_output=True,
+        )
+    success("containers e volumes removidos (rs000 mantido)")
 
-    # 2. Reset config.json para 2 slaves (mínimo)
-    info("Resetando config.json para 2 slaves...")
+    # 2. Reset config.json para rs000 + 2 slaves regulares (mínimo)
+    info("Resetando config.json para rs000 + 2 slaves regulares...")
     config["slaves"] = [
         {
-            "name": "rs001",
+            "name": "rs000",
             "host": "localhost:20129",
-            "docker_host": "9router-slave-001:20129",
+            "docker_host": "9router-slave-000:20129",
+            "password": "123456",
+        },
+        {
+            "name": "rs001",
+            "host": "localhost:20130",
+            "docker_host": "9router-slave-001:20130",
             "password": "123456",
         },
         {
             "name": "rs002",
-            "host": "localhost:20130",
-            "docker_host": "9router-slave-002:20130",
+            "host": "localhost:20131",
+            "docker_host": "9router-slave-002:20131",
             "password": "123456",
         },
     ]
     save_config(config)
-    success("config.json resetado (2 slaves)")
+    success("config.json resetado (rs000 + 2 slaves regulares)")
 
-    # 3. Gerar docker-compose.yaml e .env para 2 slaves
-    info("Gerando docker-compose.yaml para 2 slaves...")
+    # 3. Gerar docker-compose.yaml e .env para 2 slaves regulares (+ rs000)
+    info("Gerando docker-compose.yaml para rs000 + 2 slaves regulares...")
     compose_content = generate_docker_compose(config, 2)
     compose_path = BASE_DIR / "docker-compose.yaml"
     with compose_path.open("w", encoding="utf-8") as f:
         f.write(compose_content)
     success("docker-compose.yaml atualizado")
 
-    info("Gerando .env para 2 slaves...")
+    info("Gerando .env para rs000 + 2 slaves regulares...")
     env_content = generate_env(2)
     env_path = BASE_DIR / ".env"
     with env_path.open("w", encoding="utf-8") as f:
@@ -515,16 +555,16 @@ def clean_pool(
     success(".env atualizado")
 
     print()
-    success("Pool limpo! Tudo removido.")
+    success("Pool limpo! rs000 permanente mantido, demais removidos.")
 
 
 def create_pool(
     config: dict[str, Any],
     dry_run: bool = False,
 ) -> None:
-    """Cria pool básico: 1 master + 2 slaves, sobe e sincroniza."""
+    """Cria pool básico: 1 master + rs000 permanente + 2 slaves regulares."""
 
-    title("CREATE — Criar pool básico (1 master + 2 slaves)")
+    title("CREATE — Criar pool básico (1 master + rs000 + 2 slaves regulares)")
 
     if dry_run:
         info("[dry-run] nada será criado")
@@ -532,24 +572,30 @@ def create_pool(
 
     master = master_instance(config)
 
-    # 1. Reset config.json para 2 slaves (mínimo)
-    info("Resetando config.json para 2 slaves...")
+    # 1. Reset config.json para rs000 + 2 slaves regulares (mínimo)
+    info("Resetando config.json para rs000 + 2 slaves regulares...")
     config["slaves"] = [
         {
-            "name": "rs001",
+            "name": "rs000",
             "host": "localhost:20129",
-            "docker_host": "9router-slave-001:20129",
+            "docker_host": "9router-slave-000:20129",
+            "password": "123456",
+        },
+        {
+            "name": "rs001",
+            "host": "localhost:20130",
+            "docker_host": "9router-slave-001:20130",
             "password": "123456",
         },
         {
             "name": "rs002",
-            "host": "localhost:20130",
-            "docker_host": "9router-slave-002:20130",
+            "host": "localhost:20131",
+            "docker_host": "9router-slave-002:20131",
             "password": "123456",
         },
     ]
     save_config(config)
-    success("config.json resetado (2 slaves)")
+    success("config.json resetado (rs000 + 2 slaves regulares)")
 
     # 2. Gerar docker-compose.yaml e .env
     info("Gerando docker-compose.yaml...")
@@ -557,7 +603,7 @@ def create_pool(
     compose_path = BASE_DIR / "docker-compose.yaml"
     with compose_path.open("w", encoding="utf-8") as f:
         f.write(compose_content)
-    success("docker-compose.yaml atualizado (2 slaves)")
+    success("docker-compose.yaml atualizado (rs000 + 2 slaves regulares)")
 
     info("Gerando .env...")
     env_content = generate_env(2)
@@ -601,9 +647,9 @@ def create_pool(
                 health = data.get("Health", "")
                 if state == "running" and health == "healthy":
                     healthy += 1
-            if healthy >= 3:  # master + 2 slaves
+            if healthy >= 4:  # master + rs000 + 2 slaves regulares
                 break
-            info(f"Healthy: {healthy}/3... ({attempt + 1}/30)")
+            info(f"Healthy: {healthy}/4... ({attempt + 1}/30)")
     else:
         warning("Containers podem não estar totalmente prontos")
 
@@ -622,5 +668,5 @@ def create_pool(
     sync_pool(config, dry_run=False)
 
     print()
-    success("Pool criado! 1 master + 2 slaves")
-    info("Portas: 20128 (master), 20129 (rs001), 20130 (rs002)")
+    success("Pool criado! 1 master + rs000 permanente + 2 slaves regulares")
+    info("Portas: 20128 (master), 20129 (rs000), 20130 (rs001), 20131 (rs002)")

@@ -66,9 +66,9 @@ def main() -> None:
     )
 
     sync_parser.add_argument(
-        "--skip-health-check",
+        "--health-check",
         action="store_true",
-        help="Pular verificação de saúde dos providers (mais rápido)",
+        help="Executar health check dos providers após sync (desativado por padrão - 9Router test endpoint não usa API key armazenada)",
     )
 
     # slave add
@@ -177,6 +177,17 @@ def main() -> None:
         help="Segundos entre auto-discovery de modelos (padrão: 600 / 6h, 0 para desativar)",
     )
 
+    # diagnose
+    diagnose_parser = subparsers.add_parser(
+        "diagnose",
+        help="Diagnóstico em camadas: identifica se problema é no slave, proxy, provider, combo ou master",
+    )
+    diagnose_parser.add_argument(
+        "--slave",
+        help="Diagnosticar um slave específico (ex: rs000)",
+        default=None,
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -198,7 +209,7 @@ def main() -> None:
         sync_pool(
             config,
             dry_run=args.dry_run,
-            skip_health_check=args.skip_health_check,
+            skip_health_check=not args.health_check,
         )
 
     elif args.command == "slave add":
@@ -236,5 +247,36 @@ def main() -> None:
             max_failures=args.failures,
             fetch_interval=args.fetch_interval,
         )
+
+    elif args.command == "diagnose":
+        from .diagnose import diagnose_all, diagnose_slave, print_diagnosis
+        from .models import master_instance, slave_instances, RouterClient
+
+        master = master_instance(config)
+        master_client = RouterClient(master)
+        if master_client.login():
+            if args.slave:
+                slaves = slave_instances(config)
+                slave = next((s for s in slaves if s.name == args.slave), None)
+                if not slave:
+                    error(f"Slave '{args.slave}' não encontrado")
+                    sys.exit(1)
+                results = diagnose_slave(slave, config["defaults"], master_client)
+                print_diagnosis(slave.name, results)
+            else:
+                diagnose_all(config, master_client)
+        else:
+            error("Login no master falhou — diagnóstico limitado")
+            if args.slave:
+                from .diagnose import diagnose_slave, print_diagnosis
+                from .models import slave_instances
+                slaves = slave_instances(config)
+                slave = next((s for s in slaves if s.name == args.slave), None)
+                if slave:
+                    results = diagnose_slave(slave, config["defaults"])
+                    print_diagnosis(slave.name, results)
+            else:
+                from .diagnose import diagnose_all
+                diagnose_all(config)
 
 

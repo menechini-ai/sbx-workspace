@@ -9,15 +9,57 @@ from .console import info, success, warning
 
 
 def generate_docker_compose(config: dict[str, Any], num_slaves: int) -> str:
-    """Generate docker-compose.yaml with N slaves using named volumes."""
+    """Generate docker-compose.yaml with N slaves using named volumes.
+    
+    rs000 is a permanent slave that is always created alongside the master.
+    Regular slaves start from rs001.
+    """
     master_port = 20128
     base_port = 20129
 
     slave_services = []
     volumes_def = []
+    
+    # rs000 - Permanent slave (always present, port 20129)
+    slave_num = "000"
+    port = base_port  # 20129
+    vol_name = f"9router-slave-{slave_num}-data"
+    slave_services.append(f"""
+  9router-slave-{slave_num}:
+    <<: *service-slave
+    image: decolua/9router:${{NINEROUTER_TAG:-latest}}
+    container_name: sbx-9router-slave-{slave_num}
+    pull_policy: missing
+    ports:
+      - "${{ROUTER_PORT_SLAVE_{slave_num}:-{port}}}:{port}"
+    volumes:
+      - {vol_name}:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:{port}/"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "${{ROUTER_PORT_SLAVE_{slave_num}:-{port}}}"
+      HOSTNAME: 0.0.0.0
+      ROLE: slave
+      JWT_SECRET: "${{JWT_SECRET:-P4s5w0rd}}"
+      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      INITIAL_PASSWORD: "${{INITIAL_PASSWORD:-123456}}"
+      HTTP_PROXY: "${{TOR_SOCKS_URL:-socks5://sbx-tor:9050}}"
+      HTTPS_PROXY: "${{TOR_SOCKS_URL:-socks5://sbx-tor:9050}}"
+      ALL_PROXY: "${{TOR_SOCKS_URL:-socks5://sbx-tor:9050}}"
+      NO_PROXY: "${{TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}}"
+    networks:
+      - sbx-net""")
+    volumes_def.append(f"  {vol_name}:")
+
+    # Regular slaves start from rs001 (num_slaves = number of regular slaves)
     for i in range(1, num_slaves + 1):
         slave_num = f"{i:03d}"
-        port = base_port + i - 1
+        port = base_port + i  # 20130, 20131, ...
         vol_name = f"9router-slave-{slave_num}-data"
         slave_services.append(f"""
   9router-slave-{slave_num}:
@@ -124,16 +166,23 @@ networks:
 
 
 def generate_env(num_slaves: int) -> str:
-    """Generate .env file with port assignments."""
+    """Generate .env file with port assignments.
+    
+    rs000 is always on port 20129.
+    Regular slaves start from rs001 on port 20130.
+    """
     base_port = 20129
     lines = [
         "# sbx — Providers Environment",
         "TZ=America/Sao_Paulo",
         "ROUTER_PORT_MASTER=20128",
     ]
+    # rs000 - Permanent slave
+    lines.append(f"ROUTER_PORT_SLAVE_000={base_port}")
+    # Regular slaves start from rs001
     for i in range(1, num_slaves + 1):
         slave_num = f"{i:03d}"
-        port = base_port + i - 1
+        port = base_port + i  # 20130, 20131, ...
         lines.append(f"ROUTER_PORT_SLAVE_{slave_num}={port}")
     lines.extend([
         "ROUTER_DEBUG=false",
@@ -145,13 +194,28 @@ def generate_env(num_slaves: int) -> str:
 
 
 def update_config_for_scale(config: dict[str, Any], num_slaves: int) -> dict[str, Any]:
-    """Update config.json with N slaves."""
+    """Update config.json with N slaves.
+    
+    rs000 is always present (permanent slave).
+    Regular slaves start from rs001.
+    num_slaves = number of regular slaves (rs001, rs002, ...)
+    """
     base_port = 20129
     password = config["defaults"].get("password", "123456")
     slaves = []
+    
+    # rs000 - Permanent slave (always first, port 20129)
+    slaves.append({
+        "name": "rs000",
+        "host": f"localhost:{base_port}",
+        "docker_host": f"9router-slave-000:{base_port}",
+        "password": password,
+    })
+    
+    # Regular slaves start from rs001 (port 20130, 20131, ...)
     for i in range(1, num_slaves + 1):
         slave_num = f"{i:03d}"
-        port = base_port + i - 1
+        port = base_port + i  # 20130, 20131, ...
         slaves.append({
             "name": f"rs{slave_num}",
             "host": f"localhost:{port}",
