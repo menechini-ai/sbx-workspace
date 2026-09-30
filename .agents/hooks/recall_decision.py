@@ -3,9 +3,11 @@
 
 Carrega recall_rules.json, normaliza o prompt (caixa + acentos), soma o peso
 dos signals presentes e compara com threshold. Sem rede, sem estado.
-Configuração inválida ainda LANÇA (o fail-open é adicionado no próximo task).
+Erro de configuração = fail-open: avisa em stderr e retorna True (nunca lança) —
+pior caso é uma consulta desnecessária, nunca amnésia silenciosa.
 """
 import json
+import sys
 import unicodedata
 from pathlib import Path
 
@@ -29,6 +31,12 @@ def load_rules(path):
 
 
 def needs_memory(prompt, rules=None):
-    threshold, signals = load_rules(rules or DEFAULT_RULES)
-    score = sum(weight for pattern, weight in signals if pattern in normalize(prompt))
-    return score >= threshold
+    """True se o prompt pede memória. Erro de configuração = fail-open (True) + aviso em stderr."""
+    try:
+        threshold, signals = load_rules(rules or DEFAULT_RULES)
+        score = sum(weight for pattern, weight in signals if pattern in normalize(prompt))
+        return score >= threshold
+    except Exception as exc:  # noqa: BLE001 - fail-open documentado na spec (§6)
+        print(f"memory-gate: rules indisponíveis ({exc}) — fail-open, buscando mesmo assim",
+              file=sys.stderr)
+        return True

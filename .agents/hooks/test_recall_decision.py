@@ -67,5 +67,44 @@ class DecisionTest(unittest.TestCase):
         self.assertTrue(rd.needs_memory("que decidimos sobre sqlite?"))
 
 
+class FailOpenTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def rules(self, data):
+        path = self.tmp / "rules.json"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        return path
+
+    def test_missing_rules_fails_open(self):
+        self.assertTrue(rd.needs_memory("run the tests", rules=self.tmp / "nope.json"))
+
+    def test_malformed_json_fails_open(self):
+        bad = self.tmp / "broken.json"
+        bad.write_text("{not json", encoding="utf-8")
+        self.assertTrue(rd.needs_memory("run the tests", rules=bad))
+
+    def test_empty_signals_fails_open(self):
+        path = self.rules({"version": 1, "threshold": 2.0, "signals": []})
+        self.assertTrue(rd.needs_memory("run the tests", rules=path))
+
+    def test_wrong_types_fail_open(self):
+        path = self.rules({"version": 1, "threshold": {"bad": 1},
+                           "signals": [{"pattern": "x", "weight": 1}]})
+        self.assertTrue(rd.needs_memory("run the tests", rules=path))
+
+    def test_fail_open_warns_on_stderr(self):
+        import contextlib
+        import io
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertTrue(rd.needs_memory("run the tests", rules=self.tmp / "nope.json"))
+        self.assertIn("fail-open", err.getvalue())
+
+    def test_weird_prompt_does_not_raise(self):
+        # entrada fora do contrato não pode derrubar o hook
+        self.assertFalse(rd.needs_memory("", rules=RULES))
+
+
 if __name__ == "__main__":
     unittest.main()
