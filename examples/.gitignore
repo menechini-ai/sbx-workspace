@@ -1,0 +1,7 @@
+# secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# python bytecode
+.agents/hooks/__pycache__/

@@ -8,6 +8,7 @@ from typing import Any
 
 from .config import load_config
 from .console import error, info, success, title, warning
+from .diagnose import diagnose_slave, print_diagnosis
 from .fetch import fetch_opencode_free_models, update_config_with_models
 from .models import RouterClient, master_instance, slave_instances
 from .sync import (
@@ -18,6 +19,11 @@ from .sync import (
 )
 
 MIN_SLAVES = 2
+
+
+def _is_permanent_slave(name: str) -> bool:
+    """Check if slave is permanent (rs000)."""
+    return name == "rs000"
 
 
 def _is_rate_limited(err: str | None) -> bool:
@@ -68,8 +74,10 @@ def watch_pool(
         info("Auto-Discovery Modelos: desativado")
     info("Pressione Ctrl+C para parar\n")
 
-    if len(slaves) < MIN_SLAVES:
-        warning(f"Pool tem {len(slaves)} slave(s) — abaixo do mínimo de {MIN_SLAVES}!")
+    # Count regular slaves (excluding rs000) for minimum check
+    regular_slaves = [s for s in slaves if not _is_permanent_slave(s.name)]
+    if len(regular_slaves) < MIN_SLAVES:
+        warning(f"Pool tem {len(regular_slaves)} slave(s) regular(es) — abaixo do mínimo de {MIN_SLAVES}!")
 
     failure_counts: dict[str, int] = {s.name: 0 for s in slaves}
     quarantined: set[str] = set()
@@ -134,6 +142,19 @@ def watch_pool(
         print(f"\n[{ts}] Verificando {len(active_slaves)} slave(s)...")
 
         for slave in active_slaves:
+            # rs000 é permanente - nunca entra em quarentena nem é substituído
+            if _is_permanent_slave(slave.name):
+                provider = provider_map.get(slave.name)
+                if provider:
+                    valid, err = _test_provider_remote(master_client, provider["id"], timeout=90)
+                    if valid:
+                        success(f"  {slave.name}: OK (permanente)")
+                    else:
+                        warning(f"  {slave.name}: FALHOU (permanente, não substituído) — {err[:80]}")
+                else:
+                    warning(f"  {slave.name}: ausente no master (permanente)")
+                continue
+
             if slave.name in replacing:
                 info(f"  {slave.name}: substituindo... aguardando")
                 continue
@@ -164,21 +185,33 @@ def watch_pool(
                     failure_counts[slave.name] = cnt
                     warning(f"  {slave.name}: {kind} ({cnt}/{max_failures}) — {err[:80]}")
 
-                    # 1ª Falha -> Colocar em quarentena preventiva se ainda não estiver
-                    if cnt == 1 and slave.name not in quarantined:
-                        if quarantine_slave(fresh_config, slave.name):
-                            quarantined.add(slave.name)
+                    # 1ª Falha -> Diagnóstico rápido + quarentena
+                    if cnt == 1:
+                        info(f"  {slave.name}: executando diagnóstico...")
+                        results = diagnose_slave(slave, fresh_config.get("defaults", {}), master_client)
+                        print_diagnosis(slave.name, results)
+
+                        if slave.name not in quarantined:
+                            if quarantine_slave(fresh_config, slave.name):
+                                quarantined.add(slave.name)
 
             # Atingiu o limite -> Replace completo (Delete + Create)
             if failure_counts[slave.name] >= max_failures:
                 current_slaves = slave_instances(fresh_config)
-                active_count = len([s for s in current_slaves if s.name not in replacing])
+                # Only count regular slaves (not rs000, not being replaced)
+                active_count = len([s for s in current_slaves 
+                                   if not _is_permanent_slave(s.name) and s.name not in replacing])
 
                 if active_count <= MIN_SLAVES:
                     warning(
                         f"  {slave.name}: precisa de replace mas pool tem apenas "
-                        f"{active_count} slave(s) ativo(s)."
+                        f"{active_count} slave(s) regular(es) ativo(s)."
                     )
+
+                # Diagnóstico completo antes do replace
+                info(f"  {slave.name}: diagnóstico pré-replace...")
+                results = diagnose_slave(slave, fresh_config.get("defaults", {}), master_client)
+                print_diagnosis(slave.name, results)
 
                 warning(f"\n  ⚡ {slave.name}: iniciando DELETE + CREATE...")
                 replacing.add(slave.name)
