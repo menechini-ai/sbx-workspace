@@ -1,0 +1,7 @@
+# secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# ai-memory local state
+.agents/hooks/__pycache__/

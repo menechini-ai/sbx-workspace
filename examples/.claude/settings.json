@@ -1,4 +1,17 @@
 {
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .agents/hooks/memory_gate.py",
+            "timeout": 8
+          }
+        ]
+      }
+    ]
+  },
   "env": {
     "BASH_DEFAULT_TIMEOUT_MS": "1800000",
     "BASH_MAX_TIMEOUT_MS": "7200000"
