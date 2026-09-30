@@ -13,12 +13,12 @@ Full explanation (architecture, measured latency, config reference, troubleshoot
 | Path | Purpose |
 |---|---|
 | `.mcp.json` | ai-memory MCP server for Claude Code **and** for the gate. `${AI_MEMORY_AUTH_TOKEN}` placeholder — never a literal token. |
-| `.env` | Your server URL + token placeholder (step 2). |
+| `.env` | Your server URL + token placeholder (step 2). This file is **gitignored** — create it locally. |
 | `.claude/settings.json` | Enables the `memory_gate.py` UserPromptSubmit hook (timeout 8 s). |
 | `.agents/hooks/memory_gate.py` | The hook: decides, queries, injects. Stdlib only. |
 | `.agents/hooks/recall_decision.py` | The decision: normalize, score, threshold. |
 | `.agents/hooks/recall_rules.json` | PT/EN signal lexicon — edit this to tune what triggers recall. |
-| `.agents/hooks/test_*.py` | 20 unit tests (decision + gate against fakes). |
+| `.agents/hooks/test_*.py` | 24 unit tests (decision + gate against fakes). |
 | `docs/memory-gate.md` | The full doc (mirror). |
 | `verify.sh` | Smoke-check everything after setup. |
 | `.opencode/opencode.json` | Same MCP server for OpenCode (manual recall via tools). |
@@ -28,12 +28,21 @@ Full explanation (architecture, measured latency, config reference, troubleshoot
 1. **Copy this folder** into your project root.
 2. **Token** — generate one on the server (`ai-memory generate-auth-token`) and put it in
    `.env`: `AI_MEMORY_AUTH_TOKEN=<your token>`. Never commit it; `verify.sh` refuses
-   placeholders.
+   missing values and placeholders.
+   **Also export it in the shell that launches Claude Code.** Claude Code expands
+   `${AI_MEMORY_AUTH_TOKEN}` in `.mcp.json` from the *session's environment* — it does
+   **not** read `.env` by itself. Pick one:
+   - `set -a; source .env; set +a` before `claude`, or
+   - direnv (`.envrc` with the same two lines) + `direnv allow`, or
+   - export it once in your shell profile if you always use the same token.
+   `claude mcp list` must show **no** `Missing environment variables` warning —
+   `verify.sh` fails if it does.
 3. **MCP** — `.mcp.json` already points at `http://127.0.0.1:49374/mcp` with
-   `Authorization: Bearer ${AI_MEMORY_AUTH_TOKEN}`. Claude Code expands the variable;
-   the gate reads the same block. Adjust the URL for a remote server.
-4. **Verify** — `bash verify.sh`. Expect: 20 tests OK, `ai-memory … Connected`,
-   decision latency < 50 ms, and a live gate call.
+   `Authorization: Bearer ${AI_MEMORY_AUTH_TOKEN}`. The gate reads the same block
+   (from `.mcp.json` / `~/.claude.json`) and expands it the same way. Adjust the URL
+   for a remote server.
+4. **Verify** — `bash verify.sh`. Expect: 24 tests OK, `ai-memory … Connected` with no
+   missing-env warning, decision latency < 50 ms, and a live gate call.
 
 ## Tuning recall
 
@@ -58,4 +67,6 @@ See the table in [`docs/memory-gate.md`](docs/memory-gate.md#troubleshooting). Q
 - Gate silent on prompts you expect to fire → `cd .agents/hooks && python3 -m unittest test_recall_decision`
   to confirm rules load; then add stems to `recall_rules.json`.
 - `fail-open` warnings on stderr → `MEMORY_GATE_RULES` points somewhere wrong.
+- `Missing environment variables` warning / recall never fires in a session → the token
+  isn't in the session's environment (step 2): export it before launching `claude`.
 - Empty recall content → your wiki has no matching pages yet (capture hooks not installed).

@@ -12,7 +12,7 @@ from pathlib import Path
 
 GATE = Path(__file__).with_name("memory_gate.py")
 STATE = {"calls": []}
-CLEAN_PREFIXES = ("MEMORY_GATE",)  # isola o teste de env do shell
+CLEAN_PREFIXES = ("MEMORY_GATE", "AI_MEMORY")  # isola o teste de env do shell
 
 
 class Fake(BaseHTTPRequestHandler):
@@ -136,6 +136,42 @@ class GateTest(unittest.TestCase):
             proc = subprocess.run([sys.executable, str(GATE)], input=json.dumps(event),
                                   env={**clean, **base}, capture_output=True, text=True, timeout=15)
             self.assertIn(expect, proc.stdout.strip())
+
+
+    def test_malformed_stdin_is_silent(self):
+        # stdin inválido não pode derrubar o hook com rc!=0 (spec §6 linha 4)
+        clean = {k: v for k, v in os.environ.items() if not k.startswith(CLEAN_PREFIXES)}
+        env = {**clean, "MEMORY_GATE_HOME": self.home,
+               "AI_MEMORY_URL": "http://127.0.0.1:49375/mcp", "AI_MEMORY_TOKEN": "tok"}
+        proc = subprocess.run([sys.executable, str(GATE)], input="{not json", env=env,
+                              capture_output=True, text=True, timeout=15)
+        self.assertEqual(proc.returncode, 0)
+        self.assertEqual(proc.stdout.strip(), "")
+
+    def test_bad_deadline_env_uses_default(self):
+        # env numérico inválido cai no default em vez de explodir no import
+        proc = self.run_gate(MEMORY_GATE_DEADLINE="abc")
+        self.assertEqual(proc.returncode, 0)
+        json.loads(self.out(proc))  # segue operando normalmente (injeta)
+
+    def test_non_object_config_json_is_silent(self):
+        # ~/.claude.json com JSON válido porém não-objeto não pode levantar
+        home = tempfile.mkdtemp()
+        Path(home, ".claude.json").write_text("[]")
+        clean = {k: v for k, v in os.environ.items()
+                 if not k.startswith(CLEAN_PREFIXES) and not k.startswith("AI_MEMORY")}
+        event = {"hook_event_name": "UserPromptSubmit", "prompt": self.MATCHING,
+                 "cwd": home, "session_id": "s"}
+        proc = subprocess.run([sys.executable, str(GATE)], input=json.dumps(event),
+                              env={**clean, "HOME": home}, capture_output=True, text=True, timeout=15)
+        self.assertEqual(proc.returncode, 0)
+        self.assertEqual(proc.stdout.strip(), "")  # default 49374 recusado → silêncio
+
+    def test_unknown_mode_defaults_to_rules(self):
+        # typo em MEMORY_GATE_MODE não pode virar "always" (consulta todo prompt)
+        proc = self.run_gate(prompt=self.NEUTRAL, MEMORY_GATE_MODE="banana")
+        self.assertEqual(self.out(proc), "")
+        self.assertIn("MEMORY_GATE_MODE", proc.stderr)
 
 
 if __name__ == "__main__":

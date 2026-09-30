@@ -3,5 +3,5 @@
 .env.local
 .env.*.local
 
-# ai-memory local state
+# python bytecode
 .agents/hooks/__pycache__/

@@ -8,17 +8,26 @@ cd "$(dirname "$0")"
 if [ -f .env ]; then set -a; . ./.env; set +a; fi
 case "${AI_MEMORY_AUTH_TOKEN:-}" in
   *REPLACE_ME*|"")
-    echo "!! .env still holds the placeholder — do README step 2 (paste your real token) first."
+    echo "!! AI_MEMORY_AUTH_TOKEN missing or still a placeholder — do README step 2 (paste your token in .env and export it for the session) first."
     exit 1 ;;
 esac
 
 fail=0
 
-echo "== 1) decision + gate unit tests (expect: Ran 20 tests, OK) =="
+echo "== 1) decision + gate unit tests (expect: Ran 24 tests, OK) =="
 (cd .agents/hooks && python3 -m unittest test_recall_decision test_memory_gate) || fail=1
 
-echo "== 2) Claude Code sees the MCP server (expect: ai-memory ... Connected) =="
-claude mcp list 2>&1 | sed -E 's/(Bearer )[A-Za-z0-9._~+-]+/\1[REDACTED]/g' || fail=1
+echo "== 2) Claude Code sees the MCP server (expect: ai-memory ... Connected, no missing-env warning) =="
+mcp_out=$(claude mcp list 2>&1 | sed -E 's/(Bearer )[A-Za-z0-9._~+-]+/\1[REDACTED]/g')
+echo "$mcp_out"
+if echo "$mcp_out" | grep -q "Missing environment variables"; then
+  echo "FAIL: \${AI_MEMORY_AUTH_TOKEN} is not in this shell's environment — sessions would send it literally and recall would 401 (README step 2)."
+  fail=1
+fi
+if ! echo "$mcp_out" | grep -q "ai-memory.*Connected"; then
+  echo "FAIL: ai-memory MCP server not connected."
+  fail=1
+fi
 
 echo "== 3) decision latency (expect: < 50 ms) =="
 python3 - <<'EOF' || fail=1

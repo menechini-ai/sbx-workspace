@@ -53,6 +53,7 @@
 ### 7. AI Memory
 
 - **Always use AI Memory** for project memory, context, decisions, lessons, and relevant persistent knowledge.
+- The **AI Memory Gate** hook recalls automatically: local rules (`.agents/hooks/recall_rules.json`) decide per prompt, and `<ai-memory-recall>` is injected before the model runs. Guide and tuning (`MEMORY_GATE_MODE`, `MEMORY_GATE_RULES`): [`docs/memory-gate.md`](docs/memory-gate.md).
 - Follow the AI Memory documentation and workflow: https://github.com/akitaonrails/ai-memory/tree/main/docs
 - Before starting relevant work, check existing AI Memory context instead of assuming prior decisions or rediscovering information.
 - After meaningful corrections, architectural decisions, discoveries, or reusable lessons, update the AI Memory accordingly.
