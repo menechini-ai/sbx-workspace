@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Core Components:**
 - **ai-memory**: Server enabling continuity between sessions and context sharing between Claude Code and OpenCode
+- **AI Memory Gate**: `UserPromptSubmit` hook (`.agents/hooks/memory_gate.py`) that scores each prompt with local rules (`recall_rules.json`, ~0.5 ms) and injects `<ai-memory-recall>` from ai-memory before the model runs — guide: [`docs/memory-gate.md`](docs/memory-gate.md)
 - **9Router Pool**: Free AI API gateway with 1 master + N slaves (1-15) using Round Robin load balancing
 - **OmniRoute**: Additional routing service (in development)
 
