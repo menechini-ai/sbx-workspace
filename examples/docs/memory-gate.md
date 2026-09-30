@@ -3,7 +3,8 @@
 On every prompt, a `UserPromptSubmit` hook decides — with local, editable rules —
 whether the prompt needs long-term memory. If it does, the hook queries the
 **ai-memory** MCP server and injects `<ai-memory-recall>` into the prompt before
-the model runs. If not, it exits silently in about 150 milliseconds.
+the model runs. If not, it exits silently in a fraction of a second (26 ms on an idle
+machine, ~150 ms under interactive load).
 
 ## How it works
 
@@ -64,12 +65,12 @@ substring, and fires when the score reaches `threshold` (default `2.0`).
 
 | Path | Before (external scoring) | After (local rules) |
 |---|---|---|
-| Prompt that does not need memory | ~4.3 s (2 scoring passes) | **~147 ms wall** (144–151 ms over 5 runs: Python start + stdlib ≈ 146 ms, decision 0.48 ms; scoring service gone from the path) |
-| Prompt that needs memory | scoring + ~1.7 s query | ~147 ms + query |
+| Prompt that does not need memory | ~4.3 s (2 scoring passes) | **26 ms idle / ~147 ms under load** (measured 144–151 ms over 5 loaded runs, 26 ms min/median idle; decision 0.48 ms; scoring service gone from the path) |
+| Prompt that needs memory | scoring + ~1.7 s query | 26–147 ms + query |
 
-The decision itself is 0.48 ms per call (JSON rules read included). Nearly all
-of the remaining wall time is CPython startup plus importing `json` — the floor
-for any stdlib Python hook on this hardware.
+The decision itself is 0.48 ms per call (JSON rules read included). The rest of
+the wall time is CPython startup plus importing `json`; it tracks machine load
+(26 ms idle, 144–151 ms under interactive load on this machine).
 
 ## Verification
 

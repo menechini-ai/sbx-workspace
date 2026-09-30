@@ -155,9 +155,12 @@ class GateTest(unittest.TestCase):
         json.loads(self.out(proc))  # segue operando normalmente (injeta)
 
     def test_non_object_config_json_is_silent(self):
-        # ~/.claude.json com JSON válido porém não-objeto não pode levantar
+        # JSON válido porém não-objeto não pode levantar; a consulta sai por
+        # porta morta (hermético — nunca toca o servidor real de 49374)
         home = tempfile.mkdtemp()
-        Path(home, ".claude.json").write_text("[]")
+        Path(home, ".claude.json").write_text(json.dumps(
+            {"mcpServers": {"ai-memory": {"url": "http://127.0.0.1:1/mcp"}}}))
+        Path(home, ".mcp.json").write_text("[]")  # cwd = home: não-objeto no caminho
         clean = {k: v for k, v in os.environ.items()
                  if not k.startswith(CLEAN_PREFIXES) and not k.startswith("AI_MEMORY")}
         event = {"hook_event_name": "UserPromptSubmit", "prompt": self.MATCHING,
@@ -165,13 +168,16 @@ class GateTest(unittest.TestCase):
         proc = subprocess.run([sys.executable, str(GATE)], input=json.dumps(event),
                               env={**clean, "HOME": home}, capture_output=True, text=True, timeout=15)
         self.assertEqual(proc.returncode, 0)
-        self.assertEqual(proc.stdout.strip(), "")  # default 49374 recusado → silêncio
+        self.assertEqual(proc.stdout.strip(), "")  # porta morta → erro → silêncio
 
     def test_unknown_mode_defaults_to_rules(self):
-        # typo em MEMORY_GATE_MODE não pode virar "always" (consulta todo prompt)
+        # typo em MEMORY_GATE_MODE não pode virar "always" (consulta todo
+        # prompt) nem "off" (ignora as regras): segue rules nos dois sentidos
         proc = self.run_gate(prompt=self.NEUTRAL, MEMORY_GATE_MODE="banana")
         self.assertEqual(self.out(proc), "")
         self.assertIn("MEMORY_GATE_MODE", proc.stderr)
+        proc = self.run_gate(MEMORY_GATE_MODE="banana")  # prompt que casa → injeta
+        self.assertIn("<ai-memory-recall>", self.out(proc))
 
 
 if __name__ == "__main__":
