@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "threshold": 2.0,
+  "signals": [
+    {"pattern": "que decid", "weight": 2.5, "note": "PT: que decidimos/decidir"},
+    {"pattern": "que decis", "weight": 2.5, "note": "PT: que decisões/decisão já tomamos"},
+    {"pattern": "ja decid", "weight": 2.5, "note": "PT: já decidimos"},
+    {"pattern": "decidimos", "weight": 2.5, "note": "PT: passado"},
+    {"pattern": "decid", "weight": 1.0, "note": "raiz fraca, compõe com frases"},
+    {"pattern": "lembr", "weight": 2.5, "note": "PT: lembrar/lembramos/lembre"},
+    {"pattern": "o que fizemos", "weight": 2.5, "note": "PT: resumo de trabalho"},
+    {"pattern": "onde paramos", "weight": 2.5, "note": "PT: handoff"},
+    {"pattern": "que combinamos", "weight": 2.5, "note": "PT: acordos"},
+    {"pattern": "que acordamos", "weight": 2.5, "note": "PT: acordos"},
+    {"pattern": "historic", "weight": 1.5, "note": "histórico/história"},
+    {"pattern": "anterior", "weight": 1.5, "note": "PT: anterior/anteriormente"},
+    {"pattern": "antes", "weight": 1.0, "note": "PT fraco: antes de…"},
+    {"pattern": "resumo", "weight": 1.0, "note": "PT fraco"},
+    {"pattern": "previ", "weight": 1.5, "note": "EN: previously/previous"},
+    {"pattern": "did we", "weight": 2.5, "note": "EN: what did we decide"},
+    {"pattern": "remind", "weight": 2.5, "note": "EN"},
+    {"pattern": "we agreed", "weight": 2.5, "note": "EN: acordos"},
+    {"pattern": "where we left", "weight": 2.5, "note": "EN: handoff"},
+    {"pattern": "what we did", "weight": 2.5, "note": "EN: resumo"},
+    {"pattern": "last time", "weight": 2.5, "note": "EN"},
+    {"pattern": "we used", "weight": 1.5, "note": "EN: história de stack"},
+    {"pattern": "convention", "weight": 1.5, "note": "EN: convenções"}
+  ]
+}
