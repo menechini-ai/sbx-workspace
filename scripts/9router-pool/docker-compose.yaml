@@ -78,7 +78,7 @@ services:
       HOSTNAME: 0.0.0.0
       ROLE: slave
       JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
-      MACHINE_ID_SALT: $(openssl rand -hex 32)
+      #MACHINE_ID_SALT: $(openssl rand -hex 32)
       INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
       HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
       HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
@@ -144,102 +144,12 @@ services:
       NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
     networks:
       - sbx-net
-  9router-slave-003:
-    <<: *service-slave
-    image: decolua/9router:${NINEROUTER_TAG:-latest}
-    container_name: sbx-9router-slave-003
-    pull_policy: missing
-    ports:
-      - "${ROUTER_PORT_SLAVE_003:-20132}:20132"
-    volumes:
-      - 9router-slave-003-data:/app/data
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20132/"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-    environment:
-      DATA_DIR: /app/data
-      PORT: "${ROUTER_PORT_SLAVE_003:-20132}"
-      HOSTNAME: 0.0.0.0
-      ROLE: slave
-      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
-      MACHINE_ID_SALT: $(openssl rand -hex 32)
-      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
-      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
-      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
-      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
-      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
-    networks:
-      - sbx-net
-  9router-slave-004:
-    <<: *service-slave
-    image: decolua/9router:${NINEROUTER_TAG:-latest}
-    container_name: sbx-9router-slave-004
-    pull_policy: missing
-    ports:
-      - "${ROUTER_PORT_SLAVE_004:-20133}:20133"
-    volumes:
-      - 9router-slave-004-data:/app/data
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20133/"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-    environment:
-      DATA_DIR: /app/data
-      PORT: "${ROUTER_PORT_SLAVE_004:-20133}"
-      HOSTNAME: 0.0.0.0
-      ROLE: slave
-      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
-      MACHINE_ID_SALT: $(openssl rand -hex 32)
-      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
-      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
-      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
-      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
-      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
-    networks:
-      - sbx-net
-  9router-slave-005:
-    <<: *service-slave
-    image: decolua/9router:${NINEROUTER_TAG:-latest}
-    container_name: sbx-9router-slave-005
-    pull_policy: missing
-    ports:
-      - "${ROUTER_PORT_SLAVE_005:-20134}:20134"
-    volumes:
-      - 9router-slave-005-data:/app/data
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--timeout=5", "http://127.0.0.1:20134/"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-    environment:
-      DATA_DIR: /app/data
-      PORT: "${ROUTER_PORT_SLAVE_005:-20134}"
-      HOSTNAME: 0.0.0.0
-      ROLE: slave
-      JWT_SECRET: "${JWT_SECRET:-P4s5w0rd}"
-      MACHINE_ID_SALT: $(openssl rand -hex 32)
-      INITIAL_PASSWORD: "${INITIAL_PASSWORD:-123456}"
-      HTTP_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
-      HTTPS_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
-      ALL_PROXY: "${TOR_SOCKS_URL:-socks5://sbx-tor:9050}"
-      NO_PROXY: "${TOR_NO_PROXY:-localhost,127.0.0.1,9router-master}"
-    networks:
-      - sbx-net
 
 volumes:
   9router-master-data:
   9router-slave-000-data:
   9router-slave-001-data:
   9router-slave-002-data:
-  9router-slave-003-data:
-  9router-slave-004-data:
-  9router-slave-005-data:
 
 networks:
   sbx-net:

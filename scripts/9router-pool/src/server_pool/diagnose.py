@@ -3,8 +3,8 @@
 Camadas testadas (de baixo para cima):
 
     1. SLAVE    — O container 9Router responde? Login OK?
-    2. PROXY    — O Tor/SOCKS5 está acessível a partir do slave?
-    3. PROVIDER — O provider upstream (OpenRouter etc) responde?
+    2. API_KEYS — O slave tem API keys configuradas?
+    3. PROXY    — O Tor/SOCKS5 está acessível a partir do slave?
     4. COMBO    — Os modelos do combo estão disponíveis no slave?
     5. MASTER   — O master enxerga o slave? Provider connection OK?
 
@@ -412,9 +412,6 @@ def diagnose_slave(
 
     # Camada 2: PROXY
     results.append(_check_proxy(slave))
-
-    # Camada 3: UPSTREAM (via slave)
-    results.append(_check_upstream_via_slave(slave))
 
     # Camada 4: COMBOS
     results.append(_check_combos(slave, defaults))
