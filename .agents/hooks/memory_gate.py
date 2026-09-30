@@ -28,21 +28,30 @@ import json
 import os
 import sys
 import time
-import urllib.request
 from pathlib import Path
 
+
+def _env_number(name, default, cast):
+    """Env numérico inválido vira default + aviso em stderr (nunca derruba o hook)."""
+    try:
+        return cast(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        print(f"memory-gate: {name} inválido — usando {default}", file=sys.stderr)
+        return default
+
+
 START = time.monotonic()
-DEADLINE = float(os.environ.get("MEMORY_GATE_DEADLINE", 6.0))  # o hook inteiro cabe aqui
+DEADLINE = _env_number("MEMORY_GATE_DEADLINE", 6.0, float)  # o hook inteiro cabe aqui
 
 DATA = Path(os.environ.get("MEMORY_GATE_HOME", Path.home() / ".memory-gate"))
 MEM_URL = os.environ.get("AI_MEMORY_URL", "")
 TOKEN = os.environ.get("AI_MEMORY_TOKEN", "")
 HEADERS = {}  # headers extras vindos da config MCP do Claude Code
 TOOL_OVERRIDE = os.environ.get("AI_MEMORY_TOOL", "")
-CALL_TIMEOUT = float(os.environ.get("AI_MEMORY_TIMEOUT", 2.0))
+CALL_TIMEOUT = _env_number("AI_MEMORY_TIMEOUT", 2.0, float)
 MODE = os.environ.get("MEMORY_GATE_MODE", "rules")
 RULES_PATH = os.environ.get("MEMORY_GATE_RULES", "")
-MAX_CHARS = int(os.environ.get("AI_MEMORY_MAX_CHARS", 3000))
+MAX_CHARS = _env_number("AI_MEMORY_MAX_CHARS", 3000, int)
 MATCH = [m.strip().lower() for m in
          os.environ.get("MEMORY_GATE_MATCH", "ai-memory,ai_memory").split(",") if m.strip()]
 CACHE = DATA / "memory_tool.json"
@@ -54,10 +63,10 @@ def from_claude_config(cwd):
     for path in (Path(cwd) / ".mcp.json" if cwd else None, Path.home() / ".claude.json"):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
+            servers = dict(data.get("mcpServers", {}))
+            servers.update((data.get("projects", {}).get(str(cwd), {}) or {}).get("mcpServers", {}))
         except (OSError, ValueError, TypeError, AttributeError):
-            continue
-        servers = dict(data.get("mcpServers", {}))
-        servers.update((data.get("projects", {}).get(str(cwd), {}) or {}).get("mcpServers", {}))
+            continue  # JSON válido mas com forma errada também cai aqui
         for name, cfg in servers.items():
             if any(m in name.lower() for m in MATCH) and isinstance(cfg, dict) and cfg.get("url"):
                 headers = {k: os.path.expandvars(str(v)) for k, v in (cfg.get("headers") or {}).items()}
@@ -71,6 +80,7 @@ def left(cap):
 
 
 def rpc(method, params, timeout):
+    import urllib.request  # lazy: custa ~100ms e só é usado quando há busca
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
     headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream", **HEADERS}
     if TOKEN:
@@ -136,21 +146,28 @@ def decide(prompt):
 
 
 def main():
+    if MODE not in ("rules", "always", "off"):
+        print(f"memory-gate: MEMORY_GATE_MODE inválido ({MODE!r}) — tratando como rules", file=sys.stderr)
     if MODE == "off":
         return
-    event = json.load(sys.stdin)
+    global MEM_URL, HEADERS
+    try:
+        event = json.load(sys.stdin)
+        if not isinstance(event, dict):
+            return  # stdin com JSON válido mas não-objeto
+    except (ValueError, OSError):
+        return  # stdin inválido: silêncio em vez de rc!=0 (spec §6)
     if event.get("hook_event_name", "UserPromptSubmit") != "UserPromptSubmit":
         return  # só no prompt: buscar a cada tool call custaria latência demais
     prompt = event.get("prompt", "")
     if not isinstance(prompt, str) or len(prompt.strip()) < 3:
         return
-    global MEM_URL, HEADERS
-    if not MEM_URL:
-        found = from_claude_config(event.get("cwd", ""))
-        MEM_URL, HEADERS = found if found else ("http://127.0.0.1:49374/mcp", {})
     try:
-        if MODE == "rules" and not decide(prompt):
+        if MODE != "always" and not decide(prompt):
             return  # este pedido não precisa de memória (~0ms)
+        if not MEM_URL:  # só lido quando vai buscar (poupa ~3ms no caminho comum)
+            found = from_claude_config(event.get("cwd", ""))
+            MEM_URL, HEADERS = found if found else ("http://127.0.0.1:49374/mcp", {})
         text = search(prompt)
     except Exception:  # noqa: BLE001 - falha aberta: nunca atrapalhar o prompt
         return
